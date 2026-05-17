@@ -4,11 +4,13 @@ import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.LayerProperty
 import net.rafkos.neuroshima.editor.command.SetLayerPropertyCommand
 import net.rafkos.neuroshima.editor.model.Layer
+import net.rafkos.neuroshima.editor.model.LayerProperties
 import net.rafkos.neuroshima.editor.model.ModelEvent
 import java.awt.BorderLayout
 import java.awt.GridLayout
 import java.util.UUID
 import javax.swing.BorderFactory
+import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JSpinner
@@ -20,11 +22,14 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
     private val spinnerMap = mutableMapOf<LayerProperty, JSpinner>()
     private var displayedLayerId: UUID? = null
     private var suppressChange = false
+    private val resetButton = JButton(ctx.locale.t("button.reset.defaults"))
 
     init {
         layout = BorderLayout()
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.properties"))
         add(content, BorderLayout.NORTH)
+        add(resetButton, BorderLayout.SOUTH)
+        resetButton.addActionListener { resetToDefaults() }
         ctx.bag.addListener { event ->
             when (event) {
                 is ModelEvent.LayerAdded,
@@ -50,11 +55,13 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
     private fun rebuild() {
         val pair = activeLayer()
         if (pair == null) {
-            if (displayedLayerId == null) return
+            val msgKey = if (ctx.viewState.selectedLayers.size > 1) "label.multi.layer" else "label.no.layer"
+            if (displayedLayerId == null && content.componentCount > 0 &&
+                (content.getComponent(0) as? JLabel)?.text == ctx.locale.t(msgKey)) return
             displayedLayerId = null
             spinnerMap.clear()
             content.removeAll()
-            content.add(JLabel(ctx.locale.t("label.no.layer")))
+            content.add(JLabel(ctx.locale.t(msgKey)))
             content.add(JLabel(""))
             content.revalidate(); content.repaint()
             return
@@ -140,5 +147,34 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
         LayerProperty.HUE -> "prop.hue"
         LayerProperty.SATURATION -> "prop.saturation"
         LayerProperty.BRIGHTNESS -> "prop.brightness"
+    }
+
+    private fun resetToDefaults() {
+        val pair = activeLayer() ?: return
+        val (tokenId, layer) = pair
+        val defaults = LayerProperties()
+        val props = listOf(
+            LayerProperty.OFFSET_X to defaults.offsetX.toDouble(),
+            LayerProperty.OFFSET_Y to defaults.offsetY.toDouble(),
+            LayerProperty.ROTATION to defaults.rotation.toDouble(),
+            LayerProperty.SCALE    to defaults.scale.toDouble(),
+            LayerProperty.OPACITY  to defaults.opacity.toDouble(),
+            LayerProperty.HUE      to defaults.hue.toDouble(),
+            LayerProperty.SATURATION to defaults.saturation.toDouble(),
+            LayerProperty.BRIGHTNESS to defaults.brightness.toDouble(),
+        )
+        for ((prop, newValue) in props) {
+            val currentLayer = ctx.bag.findToken(tokenId)?.findLayer(layer.id) ?: continue
+            val oldValue = propValue(currentLayer, prop)
+            if (oldValue != newValue) {
+                ctx.history.execute(ctx.bag, SetLayerPropertyCommand(
+                    tokenId = tokenId,
+                    layerId = layer.id,
+                    property = prop,
+                    oldValue = oldValue,
+                    newValue = newValue,
+                ))
+            }
+        }
     }
 }
