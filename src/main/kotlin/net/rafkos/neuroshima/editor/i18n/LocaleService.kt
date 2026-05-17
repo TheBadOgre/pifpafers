@@ -7,7 +7,13 @@ import java.util.ResourceBundle
 
 class LocaleService(locale: Locale = Locale.getDefault()) {
 
-    private val bundle: ResourceBundle = ResourceBundle.getBundle("i18n.messages", locale)
+    private val bundle: ResourceBundle = ResourceBundle.getBundle(
+        "i18n.messages",
+        locale,
+        object : ResourceBundle.Control() {
+            override fun getFallbackLocale(baseName: String, locale: Locale): Locale = Locale.ROOT
+        },
+    )
 
     fun t(key: String, vararg args: Any?): String = try {
         val raw = bundle.getString(key)
