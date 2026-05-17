@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{HH:mm:ss.SSS} %-5level [%t] %logger{1.} - %msg%n"/>
+    </Console>
+  </Appenders>
+  <Loggers>
+    <Logger name="net.rafkos.neuroshima.editor.model" level="info"/>
+    <Logger name="net.rafkos.neuroshima.editor.command" level="info"/>
+    <Logger name="net.rafkos.neuroshima.editor.render" level="debug"/>
+    <Logger name="net.rafkos.neuroshima.editor.assets" level="debug"/>
+    <Root level="info">
+      <AppenderRef ref="Console"/>
+    </Root>
+  </Loggers>
+</Configuration>
