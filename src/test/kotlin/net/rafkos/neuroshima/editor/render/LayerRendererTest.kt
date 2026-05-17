@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import java.awt.Color
 import java.awt.image.BufferedImage
+import java.awt.image.BufferedImage.TYPE_INT_ARGB
 
 class LayerRendererTest {
 
@@ -55,5 +56,34 @@ class LayerRendererTest {
         val b = argb and 0xff
         assertEquals(r, g)
         assertEquals(g, b)
+    }
+
+    @Test
+    fun `vectorized ops match legacy per-pixel within 2 of 255 across hsb-opacity permutations`() {
+        val src = BufferedImage(16, 16, TYPE_INT_ARGB)
+        for (y in 0 until 16) for (x in 0 until 16) {
+            val r = (x * 16); val g = (y * 16); val b = ((x + y) * 8) and 0xff
+            src.setRGB(x, y, (0xff shl 24) or (r shl 16) or (g shl 8) or b)
+        }
+        val permutations = listOf(
+            LayerProperties(opacity = 0.5f),
+            LayerProperties(brightness = 0.7f),
+            LayerProperties(saturation = 0.3f),
+            LayerProperties(hue = 0.25f),
+            LayerProperties(opacity = 0.8f, brightness = 0.9f, saturation = 0.6f, hue = 0.1f),
+        )
+        for (p in permutations) {
+            val ref = LayerRendererLegacy.applyPixelOps(src, p)
+            val out = LayerRenderer.applyPixelOps(src, p)
+            var maxDelta = 0
+            for (y in 0 until 16) for (x in 0 until 16) {
+                val a = ref.getRGB(x, y); val b = out.getRGB(x, y)
+                for (shift in intArrayOf(0, 8, 16, 24)) {
+                    val d = kotlin.math.abs(((a ushr shift) and 0xff) - ((b ushr shift) and 0xff))
+                    if (d > maxDelta) maxDelta = d
+                }
+            }
+            assert(maxDelta <= 2) { "max delta $maxDelta for $p" }
+        }
     }
 }
