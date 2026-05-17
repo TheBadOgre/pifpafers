@@ -5,6 +5,7 @@ import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.Token
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import java.awt.Color
@@ -52,5 +53,47 @@ class ThumbnailRendererTest {
         renderer.invalidateToken(tok.id)
         val second = renderer.tokenThumbnail(tok, 64)
         assert(first !== second) { "expected new instance after invalidate" }
+    }
+
+    @Test
+    fun `layerThumbnail returns single-layer render distinct from full token thumbnail`() {
+        val cache = ImageCache(16)
+        val red = AssetPath.Bundled("red.png")
+        val blue = AssetPath.Bundled("blue.png")
+        cache.put(red, solid(Color.RED))
+        cache.put(blue, solid(Color.BLUE))
+        val token = Token.createUnit().apply {
+            addLayer(Layer.create(red))
+            addLayer(Layer.create(blue)) // top
+        }
+        val r = ThumbnailRenderer(TokenRenderer(cache, ProcessedLayerCache(16)))
+
+        val full = r.tokenThumbnail(token, 98)
+        val redOnly = r.layerThumbnail(token, token.layers[0], 98)
+        val blueOnly = r.layerThumbnail(token, token.layers[1], 98)
+
+        assertEquals(255, (full.getRGB(49, 49) and 0xff), "full thumbnail top layer is blue")
+        assertEquals(255, ((redOnly.getRGB(49, 49) ushr 16) and 0xff),
+            "red-only thumbnail center is red")
+        assertEquals(255, (blueOnly.getRGB(49, 49) and 0xff),
+            "blue-only thumbnail center is blue")
+    }
+
+    @Test
+    fun `invalidateToken drops both token and layer cache entries`() {
+        val cache = ImageCache(16)
+        val asset = AssetPath.Bundled("a.png")
+        cache.put(asset, solid(Color.RED))
+        val token = Token.createUnit().apply { addLayer(Layer.create(asset)) }
+        val r = ThumbnailRenderer(TokenRenderer(cache, ProcessedLayerCache(16)))
+
+        val tFirst = r.tokenThumbnail(token, 64)
+        val lFirst = r.layerThumbnail(token, token.layers[0], 64)
+        assertSame(tFirst, r.tokenThumbnail(token, 64))
+        assertSame(lFirst, r.layerThumbnail(token, token.layers[0], 64))
+
+        r.invalidateToken(token.id)
+        assertNotSame(tFirst, r.tokenThumbnail(token, 64))
+        assertNotSame(lFirst, r.layerThumbnail(token, token.layers[0], 64))
     }
 }
