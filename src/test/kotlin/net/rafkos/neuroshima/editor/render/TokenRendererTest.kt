@@ -64,4 +64,24 @@ class TokenRendererTest {
         assertEquals(0, r)
         assertEquals(255, b)
     }
+
+    @Test
+    fun `fits 490 logical token area into thumbnail square - offset layer lands proportionally`() {
+        val cache = ImageCache(16)
+        val asset = AssetPath.Bundled("dot.png")
+        cache.put(asset, solid(Color.RED, w = 20, h = 20))
+        // Layer offset +200 logical px on x axis. At sizePx=98 the fit-scale = 98/490 = 0.2.
+        // Expected on-screen offset from center: 200 * 0.2 = 40 px. Image size 20 * 0.2 = 4 px.
+        // So red pixel should appear near (49+40, 49) = (89, 49), not near native (49+200,49).
+        val token = Token.createUnit().apply {
+            addLayer(Layer.create(asset, LayerProperties(offsetX = 200, offsetY = 0)))
+        }
+        val out = TokenRenderer(cache, ProcessedLayerCache(16)).render(token, sizePx = 98)
+        val argbHit = out.getRGB(89, 49)
+        val alphaHit = (argbHit ushr 24) and 0xff
+        assert(alphaHit > 200) { "expected red dot near (89,49), alpha=$alphaHit" }
+        val argbCenter = out.getRGB(49, 49)
+        val alphaCenter = (argbCenter ushr 24) and 0xff
+        assertEquals(0, alphaCenter, "center should be transparent; got alpha=$alphaCenter")
+    }
 }

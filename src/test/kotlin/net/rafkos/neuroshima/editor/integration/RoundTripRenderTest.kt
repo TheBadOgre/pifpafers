@@ -52,7 +52,7 @@ class RoundTripRenderTest {
     fun `save, reopen, render - two passes match within tolerance`(@TempDir tmp: Path) {
         val bundled = tmp.resolve("bundled")
         val user = tmp.resolve("user")
-        writeSolidPng(bundled.resolve("bg.png"), Color.YELLOW)
+        writeSolidPng(bundled.resolve("bg.png"), Color.YELLOW, w = 490, h = 490)
         writeSolidPng(user.resolve("dot.png"), Color.BLUE, w = 40, h = 40)
         val library = AssetLibrary(bundled, user).also { it.scan() }
 
@@ -85,7 +85,8 @@ class RoundTripRenderTest {
         assertEquals(0, pixelDelta(render1, render2))
 
         // sample a point clearly in the yellow background (not under the blue dot)
-        // the dot (40x40) is centred at canvas (70,40), covering x=[50,90] y=[20,60]
+        // bg is 490x490 (fills logical space); dot (40x40) at offsetX=20,offsetY=-10 lands
+        // at screen ~x=[50,58], y=[44,52] (at sizePx=100, fit=100/490). x=25 is safe.
         val center = render1.getRGB(25, 50)
         val alpha = (center ushr 24) and 0xff
         val red = (center ushr 16) and 0xff
