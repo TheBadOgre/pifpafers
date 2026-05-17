@@ -15,7 +15,7 @@ class LocaleServiceTest {
     @Test
     fun `polish locale loads pl bundle`() {
         val svc = LocaleService(Locale.of("pl"))
-        assertEquals("Edytor armii do Neuroshima Hex", svc.t("app.title"))
+        assertEquals("Edytor armii Neuroshima Hex", svc.t("app.title"))
     }
 
     @Test

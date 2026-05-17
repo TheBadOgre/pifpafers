@@ -12,6 +12,8 @@ import net.rafkos.neuroshima.editor.render.ProcessedLayerCache
 import net.rafkos.neuroshima.editor.render.ThumbnailRenderer
 import net.rafkos.neuroshima.editor.render.TokenRenderer
 import net.rafkos.neuroshima.editor.ui.ViewState
+import net.rafkos.neuroshima.editor.ui.preview.PreviewKey
+import net.rafkos.neuroshima.editor.ui.preview.PreviewService
 import java.nio.file.Path
 import java.util.Locale
 
@@ -38,6 +40,8 @@ class AppContext(
         private set
     var currentFile: Path? = null
         private set
+
+    val previewService: PreviewService = PreviewService(bag, tokenRenderer)
 
     init {
         val prefs = prefsStore.load()
@@ -70,9 +74,14 @@ class AppContext(
             }
             if (touchedToken != null) {
                 thumbnails.invalidateToken(touchedToken)
+                previewService.invalidate(PreviewKey.TokenSnapshot(touchedToken))
                 if (viewState.activeTokenId != touchedToken) viewState.setActiveToken(touchedToken)
             }
         }
+    }
+
+    fun shutdown() {
+        previewService.shutdown()
     }
 
     fun markClean() { dirty = false }
