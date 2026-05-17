@@ -7,6 +7,7 @@ import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.ui.WrapLayout
 import net.rafkos.neuroshima.editor.ui.icon.Icons
 import java.awt.BorderLayout
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Insets
@@ -139,6 +140,7 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
                 preferredSize = Dimension(size + 4, size + 4)
                 toolTipText = asset.uri
             }
+            lbl.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
             lbl.addMouseListener(object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
                     if (e.clickCount == 2 && e.button == MouseEvent.BUTTON1) addLayer(asset)

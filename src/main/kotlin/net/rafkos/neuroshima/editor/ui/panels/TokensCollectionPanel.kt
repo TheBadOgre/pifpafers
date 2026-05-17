@@ -10,6 +10,7 @@ import net.rafkos.neuroshima.editor.ui.icon.Icons
 import net.rafkos.neuroshima.editor.ui.preview.PreviewKey
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Insets
@@ -93,6 +94,7 @@ class TokensCollectionPanel(
             }
             val lbl = JLabel(ImageIcon(img))
             if (token.id == activeId) currentSnapshotLabel = lbl
+            lbl.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
             lbl.addMouseListener(object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
                     if (e.button == MouseEvent.BUTTON1) {

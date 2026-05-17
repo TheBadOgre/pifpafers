@@ -8,6 +8,7 @@ import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.ui.icon.Icons
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Insets
@@ -64,6 +65,7 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
             for (layer in token.layers.asReversed()) {
                 val img      = ctx.thumbnails.layerThumbnail(token, layer, size)
                 val row      = JPanel(BorderLayout())
+                row.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
                 val selected = layer.id in ctx.viewState.selectedLayers
                 row.border = BorderFactory.createLineBorder(
                     if (selected) Color.BLUE else Color.GRAY,
