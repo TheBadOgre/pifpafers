@@ -15,7 +15,41 @@ private data class Rule(
 
 private const val BASE = "net.rafkos.neuroshima.editor"
 
-private val rules: List<Rule> = emptyList()
+private val rules: List<Rule> = listOf(
+    Rule(
+        name = "R1: model is Swing/AWT-free (java.awt.geom allowed)",
+        source = "$BASE.model",
+        forbidden = listOf("javax.swing", "java.awt"),
+        allowedImports = listOf("java.awt.geom"),
+    ),
+    Rule(
+        name = "R2: command depends on model only (no Swing/AWT, no ui)",
+        source = "$BASE.command",
+        forbidden = listOf("javax.swing", "java.awt", "$BASE.ui"),
+    ),
+    Rule(
+        name = "R3: persistence does not depend on command or ui",
+        source = "$BASE.persistence",
+        forbidden = listOf("javax.swing", "java.awt", "$BASE.ui", "$BASE.command"),
+    ),
+    Rule(
+        name = "R4: assets has no Swing, no ui (java.awt.image allowed)",
+        source = "$BASE.assets",
+        forbidden = listOf("javax.swing", "$BASE.ui", "$BASE.command"),
+        allowedImports = listOf("java.awt.image"),
+    ),
+    Rule(
+        name = "R5: render has no Swing widgets and no ui (java.awt allowed)",
+        source = "$BASE.render",
+        forbidden = listOf("javax.swing", "$BASE.ui", "$BASE.command"),
+        allowedImports = listOf("java.awt"),
+    ),
+    Rule(
+        name = "R6: i18n is leaf",
+        source = "$BASE.i18n",
+        forbidden = listOf("javax.swing", "java.awt", "$BASE.ui", "$BASE.model", "$BASE.command"),
+    ),
+)
 
 private data class SourceFile(val path: Path, val pkg: String, val imports: List<String>)
 
