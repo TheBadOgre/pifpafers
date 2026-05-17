@@ -2,6 +2,7 @@ package net.rafkos.neuroshima.editor.ui.panels
 
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.AddTokenCommand
+import net.rafkos.neuroshima.editor.command.DuplicateTokenCommand
 import net.rafkos.neuroshima.editor.command.RemoveTokenCommand
 import net.rafkos.neuroshima.editor.model.TokenKind
 import net.rafkos.neuroshima.editor.render.ThumbnailRenderer
@@ -37,11 +38,35 @@ class TokensCollectionPanel(
     private val slider = JSlider(48, 192, ctx.viewState.collectionThumbSize)
     private var currentSnapshotKey: PreviewKey.TokenSnapshot? = null
     private var currentSnapshotLabel: JLabel? = null
+    private val deleteBtn: JButton
+    private val duplicateBtn: JButton
 
     init {
         layout = BorderLayout()
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.tokens"))
         add(JScrollPane(grid), BorderLayout.CENTER)
+
+        deleteBtn = iconBtn(Icons.tokenDelete, ctx.locale.t("button.delete.token")) {
+            val id = ctx.viewState.activeTokenId ?: return@iconBtn
+            val yes = ctx.locale.t("dialog.yes")
+            val no  = ctx.locale.t("dialog.no")
+            val ok  = JOptionPane.showOptionDialog(
+                this@TokensCollectionPanel,
+                ctx.locale.t("dialog.token.delete"),
+                ctx.locale.t("dialog.confirm"),
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null, arrayOf(yes, no), yes,
+            )
+            if (ok == 0) ctx.history.execute(ctx.bag, RemoveTokenCommand(id))
+        }
+
+        duplicateBtn = iconBtn(Icons.tokenDuplicate, ctx.locale.t("button.duplicate.token")) {
+            val id = ctx.viewState.activeTokenId ?: return@iconBtn
+            val cmd = DuplicateTokenCommand(id)
+            ctx.history.execute(ctx.bag, cmd)
+            cmd.newTokenId?.let { ctx.viewState.setActiveToken(it) }
+        }
 
         val south = JPanel(BorderLayout()).apply {
             val buttons = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2))
@@ -55,6 +80,8 @@ class TokensCollectionPanel(
                 ctx.history.execute(ctx.bag, cmd)
                 cmd.createdId?.let { ctx.viewState.setActiveToken(it) }
             })
+            buttons.add(duplicateBtn)
+            buttons.add(deleteBtn)
             add(buttons, BorderLayout.WEST)
             slider.preferredSize = Dimension(120, slider.preferredSize.height)
             add(JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }, BorderLayout.EAST)
@@ -106,13 +133,17 @@ class TokensCollectionPanel(
                     if (e.button == MouseEvent.BUTTON1) {
                         ctx.viewState.setActiveToken(token.id)
                     } else if (e.button == MouseEvent.BUTTON3) {
-                        val ok = JOptionPane.showConfirmDialog(
+                        val yes = ctx.locale.t("dialog.yes")
+                        val no  = ctx.locale.t("dialog.no")
+                        val ok  = JOptionPane.showOptionDialog(
                             this@TokensCollectionPanel,
                             ctx.locale.t("dialog.token.delete"),
                             ctx.locale.t("dialog.confirm"),
                             JOptionPane.YES_NO_OPTION,
+                            JOptionPane.QUESTION_MESSAGE,
+                            null, arrayOf(yes, no), yes,
                         )
-                        if (ok == JOptionPane.YES_OPTION) {
+                        if (ok == 0) {
                             ctx.history.execute(ctx.bag, RemoveTokenCommand(token.id))
                         }
                     }
@@ -123,6 +154,11 @@ class TokensCollectionPanel(
         }
         grid.revalidate()
         grid.repaint()
+
+        val hasActive = activeId != null
+        deleteBtn.isEnabled = hasActive
+        duplicateBtn.isEnabled = hasActive
+
         updateSnapshotSubscription(activeId, size)
     }
 

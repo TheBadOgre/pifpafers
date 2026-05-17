@@ -9,6 +9,7 @@ data class LayerProperties(
     val hue: Float = 0f,
     val saturation: Float = 1f,
     val brightness: Float = 1f,
+    val colorize: Boolean = false,
 ) {
     fun normalized(): LayerProperties =
         copy(rotation = ((rotation % 360f) + 360f) % 360f)

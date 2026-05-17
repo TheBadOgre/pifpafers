@@ -71,7 +71,7 @@ class JsonBagStore(
     )
 
     private fun LayerProperties.toDto(): PropsDto = PropsDto(
-        offsetX, offsetY, rotation, scale, opacity, hue, saturation, brightness
+        offsetX, offsetY, rotation, scale, opacity, hue, saturation, brightness, colorize
     )
 
     private fun TokenDto.toModel(): Token {
@@ -88,6 +88,7 @@ class JsonBagStore(
             rotation = props.rotation, scale = props.scale,
             opacity = props.opacity,
             hue = props.hue, saturation = props.saturation, brightness = props.brightness,
+            colorize = props.colorize,
         ),
     )
 }

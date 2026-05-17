@@ -67,5 +67,6 @@ object Icons {
     val tokenAddUnit   = load("token_add_unit")
     val tokenAddMod    = load("token_add_modifier")
     val tokenDelete    = load("token_delete")
+    val tokenDuplicate = load("token_duplicate")
     val assetsRefresh  = load("assets_refresh")
 }

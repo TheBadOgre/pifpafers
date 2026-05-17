@@ -8,13 +8,17 @@ import java.awt.image.RescaleOp
 object LayerRenderer {
 
     fun applyPixelOps(source: BufferedImage, props: LayerProperties): BufferedImage {
-        val identity = props.opacity == 1f && props.hue == 0f &&
+        val identity = !props.colorize && props.opacity == 1f && props.hue == 0f &&
             props.saturation == 1f && props.brightness == 1f
         if (identity) return source
 
         var img = ensureArgb(source)
-        if (props.hue != 0f) img = hueShift(img, props.hue)
-        if (props.saturation != 1f) img = applySaturationPerPixel(img, props.saturation)
+        if (props.colorize) {
+            img = applyColorize(img, props.hue, props.saturation)
+        } else {
+            if (props.hue != 0f) img = hueShift(img, props.hue)
+            if (props.saturation != 1f) img = applySaturationPerPixel(img, props.saturation)
+        }
         if (props.brightness != 1f) {
             val scales = floatArrayOf(props.brightness, props.brightness, props.brightness, 1f)
             val offsets = floatArrayOf(0f, 0f, 0f, 0f)
@@ -49,6 +53,24 @@ object LayerRenderer {
             Color.RGBtoHSB(r, g, b, hsb)
             val newSat = (hsb[1] * saturation).coerceIn(0f, 1f)
             val rgb = Color.HSBtoRGB(hsb[0], newSat, hsb[2]) and 0x00ffffff
+            out.setRGB(x, y, (a shl 24) or rgb)
+        }
+        return out
+    }
+
+    private fun applyColorize(src: BufferedImage, targetHue: Float, satMult: Float): BufferedImage {
+        val out = BufferedImage(src.width, src.height, BufferedImage.TYPE_INT_ARGB)
+        val hsb = FloatArray(3)
+        for (y in 0 until src.height) for (x in 0 until src.width) {
+            val argb = src.getRGB(x, y)
+            val a = (argb ushr 24) and 0xff
+            if (a == 0) continue
+            val r = (argb ushr 16) and 0xff
+            val g = (argb ushr 8) and 0xff
+            val b = argb and 0xff
+            Color.RGBtoHSB(r, g, b, hsb)
+            val newSat = (hsb[1] * satMult).coerceIn(0f, 1f)
+            val rgb = Color.HSBtoRGB(targetHue, newSat, hsb[2]) and 0x00ffffff
             out.setRGB(x, y, (a shl 24) or rgb)
         }
         return out

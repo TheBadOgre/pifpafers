@@ -80,6 +80,8 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
         }
 
     private fun rebuild() {
+        dragLayerId = null
+        dragY = -1
         list.removeAll()
         val activeId = ctx.viewState.activeTokenId
         val token: Token? = activeId?.let { ctx.bag.findToken(it) }
@@ -100,7 +102,9 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                     BorderFactory.createCompoundBorder(outerBorder, innerBorder),
                 )
                 row.maximumSize = Dimension(Int.MAX_VALUE, size + 8)
-                row.add(JLabel(ImageIcon(img)), BorderLayout.WEST)
+
+                val lbl = JLabel(ImageIcon(img))
+                row.add(lbl, BorderLayout.WEST)
 
                 val buttons = JPanel(FlowLayout(FlowLayout.RIGHT, 2, 2))
                 buttons.add(iconBtn(Icons.layerUp, ctx.locale.t("button.layer.up")) {
@@ -117,18 +121,21 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                     ctx.history.execute(ctx.bag, DuplicateLayerCommand(token.id, layer.id))
                 })
                 buttons.add(iconBtn(Icons.layerRemove, ctx.locale.t("button.layer.remove")) {
-                    val ok = JOptionPane.showConfirmDialog(
+                    val yes = ctx.locale.t("dialog.yes")
+                    val no  = ctx.locale.t("dialog.no")
+                    val ok  = JOptionPane.showOptionDialog(
                         this@LayersPanel,
                         ctx.locale.t("dialog.layer.remove"),
                         ctx.locale.t("dialog.confirm"),
                         JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE,
+                        null, arrayOf(yes, no), yes,
                     )
-                    if (ok == JOptionPane.YES_OPTION)
-                        ctx.history.execute(ctx.bag, RemoveLayerCommand(token.id, layer.id))
+                    if (ok == 0) ctx.history.execute(ctx.bag, RemoveLayerCommand(token.id, layer.id))
                 })
                 row.add(buttons, BorderLayout.EAST)
 
-                row.addMouseListener(object : MouseAdapter() {
+                val selectListener = object : MouseAdapter() {
                     override fun mousePressed(e: MouseEvent) {
                         if (e.button != MouseEvent.BUTTON1) return
                         if (e.isControlDown) {
@@ -138,24 +145,27 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                             ctx.viewState.replaceSelection(listOf(layer.id))
                         }
                     }
-                })
+                }
+                row.addMouseListener(selectListener)
+                lbl.addMouseListener(selectListener)
+
                 val capturedLayerId = layer.id
                 val dragAdapter = object : MouseAdapter() {
                     override fun mousePressed(e: MouseEvent) {
                         if (e.button != MouseEvent.BUTTON1) return
                         if (capturedLayerId !in ctx.viewState.selectedLayers) return
                         dragLayerId = capturedLayerId
-                        dragY = SwingUtilities.convertPoint(row, e.point, list).y
+                        dragY = SwingUtilities.convertPoint(e.component, e.point, list).y
                         list.repaint()
                     }
                     override fun mouseDragged(e: MouseEvent) {
                         if (dragLayerId == null) return
-                        dragY = SwingUtilities.convertPoint(row, e.point, list).y.coerceIn(0, list.height)
+                        dragY = SwingUtilities.convertPoint(e.component, e.point, list).y.coerceIn(0, list.height)
                         list.repaint()
                     }
                     override fun mouseReleased(e: MouseEvent) {
                         if (dragLayerId == null || e.button != MouseEvent.BUTTON1) return
-                        val finalY = SwingUtilities.convertPoint(row, e.point, list).y.coerceIn(0, list.height)
+                        val finalY = SwingUtilities.convertPoint(e.component, e.point, list).y.coerceIn(0, list.height)
                         commitDrop(finalY)
                         dragLayerId = null
                         dragY = -1
@@ -164,6 +174,9 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                 }
                 row.addMouseListener(dragAdapter)
                 row.addMouseMotionListener(dragAdapter)
+                lbl.addMouseListener(dragAdapter)
+                lbl.addMouseMotionListener(dragAdapter)
+
                 list.add(row)
             }
         } else {

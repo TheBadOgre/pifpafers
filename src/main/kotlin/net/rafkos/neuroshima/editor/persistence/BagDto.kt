@@ -33,4 +33,5 @@ internal data class PropsDto(
     val hue: Float,
     val saturation: Float,
     val brightness: Float,
+    val colorize: Boolean = false,
 )

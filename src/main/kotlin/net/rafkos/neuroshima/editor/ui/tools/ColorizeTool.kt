@@ -1,40 +1,55 @@
 package net.rafkos.neuroshima.editor.ui.tools
 
 import net.rafkos.neuroshima.editor.app.AppContext
-import net.rafkos.neuroshima.editor.command.LayerProperty
-import net.rafkos.neuroshima.editor.command.MultiLayerPropertyCommand
-import net.rafkos.neuroshima.editor.model.LayerProperties
+import net.rafkos.neuroshima.editor.command.ColorizeCommand
 import java.awt.Color
+import java.awt.Component
+import java.awt.Container
 import java.awt.event.MouseEvent
-import java.util.UUID
 import javax.swing.JColorChooser
+import javax.swing.JTabbedPane
 
 class ColorizeTool : Tool {
     override fun onMousePressed(ctx: AppContext, e: MouseEvent) {
-        val tokenId = ctx.viewState.activeTokenId ?: return
-        val token = ctx.bag.findToken(tokenId) ?: return
-        val selected = ctx.viewState.selectedLayers.ifEmpty { token.layers.map { it.id }.toSet() }
-        if (selected.isEmpty()) return
-        val picked = JColorChooser.showDialog(e.component, "Colorize", Color.WHITE) ?: return
-        val hsb = Color.RGBtoHSB(picked.red, picked.green, picked.blue, FloatArray(3))
-        apply(ctx, tokenId, selected, LayerProperty.HUE, hsb[0].toDouble()) { it.hue.toDouble() }
-        apply(ctx, tokenId, selected, LayerProperty.SATURATION, hsb[1].toDouble()) { it.saturation.toDouble() }
-        apply(ctx, tokenId, selected, LayerProperty.BRIGHTNESS, hsb[2].toDouble()) { it.brightness.toDouble() }
+        run(ctx, e.component)
     }
 
-    private fun apply(
-        ctx: AppContext,
-        tokenId: UUID,
-        ids: Set<UUID>,
-        property: LayerProperty,
-        newValue: Double,
-        oldOf: (LayerProperties) -> Double,
-    ) {
-        val token = ctx.bag.findToken(tokenId) ?: return
-        val targets = ids.mapNotNull { id ->
-            val layer = token.findLayer(id) ?: return@mapNotNull null
-            MultiLayerPropertyCommand.Target(tokenId, id, oldOf(layer.props), newValue)
+    companion object {
+        fun run(ctx: AppContext, dialogParent: Component) {
+            val tokenId = ctx.viewState.activeTokenId ?: return
+            val token = ctx.bag.findToken(tokenId) ?: return
+            val selected = ctx.viewState.selectedLayers
+            if (selected.isEmpty()) return
+
+            val chooser = JColorChooser(Color.WHITE)
+            val hsvIdx = chooser.chooserPanels.indexOfFirst { panel ->
+                "HSV" in panel.displayName.uppercase() || "HSB" in panel.displayName.uppercase()
+            }
+            if (hsvIdx >= 0) findTabbedPane(chooser)?.selectedIndex = hsvIdx
+
+            var picked: Color? = null
+            val dialog = JColorChooser.createDialog(
+                dialogParent, ctx.locale.t("tool.colorize"), true, chooser,
+                { picked = chooser.color }, null,
+            )
+            dialog.isVisible = true
+            val color = picked ?: return
+
+            val hsb = Color.RGBtoHSB(color.red, color.green, color.blue, FloatArray(3))
+            val changes = selected.mapNotNull { id ->
+                val layer = token.findLayer(id) ?: return@mapNotNull null
+                val newProps = layer.props.copy(colorize = true, hue = hsb[0], saturation = 2f, brightness = 1f)
+                ColorizeCommand.LayerChange(id, layer.props, newProps)
+            }
+            if (changes.isNotEmpty()) ctx.history.execute(ctx.bag, ColorizeCommand(tokenId, changes))
         }
-        ctx.history.execute(ctx.bag, MultiLayerPropertyCommand(property, targets))
+
+        private fun findTabbedPane(c: Container): JTabbedPane? {
+            for (child in c.components) {
+                if (child is JTabbedPane) return child
+                if (child is Container) findTabbedPane(child)?.let { return it }
+            }
+            return null
+        }
     }
 }

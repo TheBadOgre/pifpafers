@@ -21,11 +21,12 @@ import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.JSplitPane
 import javax.swing.KeyStroke
+import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
 
 class MainFrame(val ctx: AppContext) : JFrame() {
 
-    val toolPalette: JPanel = ToolPalettePanel(ctx.viewState, ctx.locale).apply { preferredSize = Dimension(40, 0) }
+    val toolPalette: JPanel = ToolPalettePanel(ctx).apply { preferredSize = Dimension(40, 0) }
     val tokensPanel: JPanel = TokensCollectionPanel(ctx, ctx.thumbnails).apply { preferredSize = Dimension(240, 0) }
     val layersPanel: JPanel = LayersPanel(ctx).apply { preferredSize = Dimension(260, 240) }
     val propertiesPanel: JPanel = LayerPropertiesPanel(ctx).apply { preferredSize = Dimension(260, 280) }
@@ -115,5 +116,6 @@ class MainFrame(val ctx: AppContext) : JFrame() {
         preferredSize = Dimension(1280, 800)
         pack()
         setLocationRelativeTo(null)
+
     }
 }
