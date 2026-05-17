@@ -23,6 +23,8 @@ class TokenRenderer(
         val g   = out.createGraphics()
         try {
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
             val fit     = sizePx.toDouble() / srcW
             val scaledH = srcH * fit
             val offsetY = (sizePx - scaledH) / 2.0
