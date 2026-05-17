@@ -19,7 +19,8 @@ class RotateTool : Tool {
         startX = e.x
         startTargets = selected.mapNotNull { id ->
             val layer = token.findLayer(id) ?: return@mapNotNull null
-            MultiLayerPropertyCommand.Target(tokenId, id, layer.props.rotation.toDouble())
+            val v = layer.props.rotation.toDouble()
+            MultiLayerPropertyCommand.Target(tokenId, id, oldValue = v, newValue = v)
         }
     }
 
@@ -28,8 +29,7 @@ class RotateTool : Tool {
         val degrees = (e.x - startX).toDouble()
         ctx.history.execute(ctx.bag, MultiLayerPropertyCommand(
             property = LayerProperty.ROTATION,
-            newValue = startTargets.first().oldValue + degrees,
-            targets = startTargets,
+            targets = startTargets.map { it.copy(newValue = it.oldValue + degrees) },
         ))
     }
 

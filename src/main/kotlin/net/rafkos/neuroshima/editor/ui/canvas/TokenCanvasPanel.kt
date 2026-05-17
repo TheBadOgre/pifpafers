@@ -3,8 +3,10 @@ package net.rafkos.neuroshima.editor.ui.canvas
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.app.AppDirs
 import net.rafkos.neuroshima.editor.model.ModelEvent
+import net.rafkos.neuroshima.editor.model.TokenKind
 import net.rafkos.neuroshima.editor.render.AffineBuilder
-import net.rafkos.neuroshima.editor.render.LOGICAL_TOKEN_SIZE_PX
+import net.rafkos.neuroshima.editor.render.LOGICAL_CANVAS_H
+import net.rafkos.neuroshima.editor.render.LOGICAL_CANVAS_W
 import net.rafkos.neuroshima.editor.render.LayerRenderer
 import net.rafkos.neuroshima.editor.render.ProcessedLayerCache
 import java.awt.BasicStroke
@@ -12,9 +14,12 @@ import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Polygon
 import java.awt.RenderingHints
+import java.awt.Shape
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.geom.Ellipse2D
 import java.awt.geom.Line2D
 import java.awt.geom.Point2D
 import java.awt.image.BufferedImage
@@ -22,7 +27,11 @@ import java.util.UUID
 import javax.imageio.ImageIO
 import javax.swing.JPanel
 
-const val LOGICAL_SIZE_PX: Int = LOGICAL_TOKEN_SIZE_PX
+private val HEX_CLIP = Polygon(
+    intArrayOf(1044, 783, 261, 0, 261, 783),
+    intArrayOf(451, 0, 0, 451, 902, 902),
+    6,
+)
 
 class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
 
@@ -45,7 +54,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
     private var compositeForTokenId: UUID? = null
 
     init {
-        preferredSize = Dimension(LOGICAL_SIZE_PX, LOGICAL_SIZE_PX)
+        preferredSize = Dimension(LOGICAL_CANVAS_W / 2, LOGICAL_CANVAS_H / 2)
         background = Color(60, 60, 60)
         ctx.bag.addListener { event ->
             when (event) {
@@ -96,7 +105,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
     private fun ensureComposite(tokenId: UUID): BufferedImage {
         val cached = compositeCache
         if (cached != null && compositeForTokenId == tokenId) return cached
-        val out = BufferedImage(LOGICAL_SIZE_PX, LOGICAL_SIZE_PX, BufferedImage.TYPE_INT_ARGB)
+        val out = BufferedImage(LOGICAL_CANVAS_W, LOGICAL_CANVAS_H, BufferedImage.TYPE_INT_ARGB)
         val g = out.createGraphics()
         try {
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
@@ -109,8 +118,8 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
                         ?: LayerRenderer.applyPixelOps(source, layer.props).also { ctx.processedCache.put(key, it) }
                     val xform = AffineBuilder.build(
                         props = layer.props,
-                        canvasCenterX = LOGICAL_CENTER,
-                        canvasCenterY = LOGICAL_CENTER,
+                        canvasCenterX = LOGICAL_CENTER_X,
+                        canvasCenterY = LOGICAL_CENTER_Y,
                         imageWidth = processed.width,
                         imageHeight = processed.height,
                     )
@@ -134,17 +143,23 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         val centerY = height / 2.0
         g2.translate(centerX + panX, centerY + panY)
         g2.scale(zoom.toDouble(), zoom.toDouble())
-        g2.translate(-LOGICAL_CENTER, -LOGICAL_CENTER)
-        g2.color = Color(220, 220, 220)
-        g2.fillRect(0, 0, LOGICAL_SIZE_PX, LOGICAL_SIZE_PX)
+        g2.translate(-LOGICAL_CENTER_X, -LOGICAL_CENTER_Y)
         val tokenId = ctx.viewState.activeTokenId
+        val token = if (tokenId != null) ctx.bag.findToken(tokenId) else null
+        val clip: Shape = if (token?.kind == TokenKind.MODIFIER)
+            Ellipse2D.Double(LOGICAL_CENTER_X - 220.0, LOGICAL_CENTER_Y - 220.0, 440.0, 440.0)
+        else
+            HEX_CLIP
+        g2.clip(clip)
+        g2.color = Color(220, 220, 220)
+        g2.fillRect(0, 0, LOGICAL_CANVAS_W, LOGICAL_CANVAS_H)
         if (tokenId != null) {
             g2.drawImage(ensureComposite(tokenId), 0, 0, null)
             drawSelectionMarkers(g2, tokenId)
         }
         if (ctx.viewState.showOverlay && overlay != null) {
-            val ox = (LOGICAL_SIZE_PX - overlay.width) / 2
-            val oy = (LOGICAL_SIZE_PX - overlay.height) / 2
+            val ox = (LOGICAL_CANVAS_W - overlay.width) / 2
+            val oy = (LOGICAL_CANVAS_H - overlay.height) / 2
             g2.drawImage(overlay, ox, oy, null)
         }
     }
@@ -158,7 +173,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         for (layer in token.layers) {
             if (layer.id !in selected) continue
             val img = ctx.imageCache.get(layer.assetPath) ?: continue
-            val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER, LOGICAL_CENTER, img.width, img.height)
+            val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER_X, LOGICAL_CENTER_Y, img.width, img.height)
             val corners = arrayOf(
                 Point2D.Double(0.0, 0.0),
                 Point2D.Double(img.width.toDouble(), 0.0),

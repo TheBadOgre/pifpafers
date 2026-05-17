@@ -5,10 +5,9 @@ import java.util.UUID
 
 class MultiLayerPropertyCommand(
     val property: LayerProperty,
-    val newValue: Double,
     val targets: List<Target>,
 ) : Command {
-    data class Target(val tokenId: UUID, val layerId: UUID, val oldValue: Double)
+    data class Target(val tokenId: UUID, val layerId: UUID, val oldValue: Double, val newValue: Double)
 
     override val label: String = "Set ${property.name.lowercase()} (multi)"
 
@@ -16,7 +15,7 @@ class MultiLayerPropertyCommand(
         for (tgt in targets) {
             val token = bag.findToken(tgt.tokenId) ?: continue
             val layer = token.findLayer(tgt.layerId) ?: continue
-            bag.updateLayerProps(tgt.tokenId, tgt.layerId, property.apply(layer.props, newValue))
+            bag.updateLayerProps(tgt.tokenId, tgt.layerId, property.apply(layer.props, tgt.newValue))
         }
     }
 
@@ -34,10 +33,10 @@ class MultiLayerPropertyCommand(
         val mineKeys = targets.map { it.tokenId to it.layerId }.toSet()
         val theirKeys = next.targets.map { it.tokenId to it.layerId }.toSet()
         if (mineKeys != theirKeys) return null
-        return MultiLayerPropertyCommand(
-            property = property,
-            newValue = next.newValue,
-            targets = targets,
-        )
+        val merged = targets.map { old ->
+            val newer = next.targets.first { it.tokenId == old.tokenId && it.layerId == old.layerId }
+            old.copy(newValue = newer.newValue)
+        }
+        return MultiLayerPropertyCommand(property, merged)
     }
 }

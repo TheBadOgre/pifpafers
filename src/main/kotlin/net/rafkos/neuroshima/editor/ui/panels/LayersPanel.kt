@@ -31,7 +31,9 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
         layout = BorderLayout()
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.layers"))
         add(JScrollPane(list), BorderLayout.CENTER)
-        add(slider, BorderLayout.SOUTH)
+        slider.preferredSize = Dimension(120, slider.preferredSize.height)
+        val sliderRow = JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }
+        add(sliderRow, BorderLayout.SOUTH)
         slider.addChangeListener { ctx.viewState.setLayersThumbSize(slider.value) }
 
         ctx.bag.addListener { rebuild() }

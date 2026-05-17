@@ -39,7 +39,8 @@ class TokensCollectionPanel(
         add(JScrollPane(grid), BorderLayout.CENTER)
 
         val south = JPanel(BorderLayout())
-        south.add(slider, BorderLayout.NORTH)
+        slider.preferredSize = Dimension(120, slider.preferredSize.height)
+        south.add(JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }, BorderLayout.NORTH)
         val buttons = JPanel(FlowLayout(FlowLayout.LEFT, 4, 4))
         buttons.add(JButton(ctx.locale.t("button.add.unit")).apply {
             addActionListener {

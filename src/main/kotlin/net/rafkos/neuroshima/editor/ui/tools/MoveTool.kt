@@ -24,28 +24,28 @@ class MoveTool : Tool {
         startX = e.x; startY = e.y; startTokenId = tokenId
         startTargetsX = selected.mapNotNull { id ->
             val layer = token.findLayer(id) ?: return@mapNotNull null
-            MultiLayerPropertyCommand.Target(tokenId, id, layer.props.offsetX.toDouble())
+            val v = layer.props.offsetX.toDouble()
+            MultiLayerPropertyCommand.Target(tokenId, id, oldValue = v, newValue = v)
         }
         startTargetsY = selected.mapNotNull { id ->
             val layer = token.findLayer(id) ?: return@mapNotNull null
-            MultiLayerPropertyCommand.Target(tokenId, id, layer.props.offsetY.toDouble())
+            val v = layer.props.offsetY.toDouble()
+            MultiLayerPropertyCommand.Target(tokenId, id, oldValue = v, newValue = v)
         }
     }
 
     override fun onMouseDragged(ctx: AppContext, e: MouseEvent) {
-        val tokenId = startTokenId ?: return
+        startTokenId ?: return
         if (startTargetsX.isEmpty()) return
         val dx = ((e.x - startX) / ctx.viewState.zoom).toInt()
         val dy = ((e.y - startY) / ctx.viewState.zoom).toInt()
         ctx.history.execute(ctx.bag, MultiLayerPropertyCommand(
             property = LayerProperty.OFFSET_X,
-            newValue = startTargetsX.first().oldValue + dx,
-            targets = startTargetsX,
+            targets = startTargetsX.map { it.copy(newValue = it.oldValue + dx) },
         ))
         ctx.history.execute(ctx.bag, MultiLayerPropertyCommand(
             property = LayerProperty.OFFSET_Y,
-            newValue = startTargetsY.first().oldValue + dy,
-            targets = startTargetsY,
+            targets = startTargetsY.map { it.copy(newValue = it.oldValue + dy) },
         ))
     }
 

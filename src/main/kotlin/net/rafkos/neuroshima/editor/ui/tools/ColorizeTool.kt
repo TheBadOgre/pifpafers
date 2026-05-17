@@ -33,8 +33,8 @@ class ColorizeTool : Tool {
         val token = ctx.bag.findToken(tokenId) ?: return
         val targets = ids.mapNotNull { id ->
             val layer = token.findLayer(id) ?: return@mapNotNull null
-            MultiLayerPropertyCommand.Target(tokenId, id, oldOf(layer.props))
+            MultiLayerPropertyCommand.Target(tokenId, id, oldOf(layer.props), newValue)
         }
-        ctx.history.execute(ctx.bag, MultiLayerPropertyCommand(property, newValue, targets))
+        ctx.history.execute(ctx.bag, MultiLayerPropertyCommand(property, targets))
     }
 }

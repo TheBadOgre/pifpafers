@@ -16,18 +16,17 @@ class OpacityTool : Tool {
         startX = e.x
         startTargets = selected.mapNotNull { id ->
             val layer = token.findLayer(id) ?: return@mapNotNull null
-            MultiLayerPropertyCommand.Target(tokenId, id, layer.props.opacity.toDouble())
+            val v = layer.props.opacity.toDouble()
+            MultiLayerPropertyCommand.Target(tokenId, id, oldValue = v, newValue = v)
         }
     }
 
     override fun onMouseDragged(ctx: AppContext, e: MouseEvent) {
         if (startTargets.isEmpty()) return
         val delta = (e.x - startX) / 200.0
-        val target = (startTargets.first().oldValue + delta).coerceIn(0.0, 1.0)
         ctx.history.execute(ctx.bag, MultiLayerPropertyCommand(
             property = LayerProperty.OPACITY,
-            newValue = target,
-            targets = startTargets,
+            targets = startTargets.map { it.copy(newValue = (it.oldValue + delta).coerceIn(0.0, 1.0)) },
         ))
     }
 

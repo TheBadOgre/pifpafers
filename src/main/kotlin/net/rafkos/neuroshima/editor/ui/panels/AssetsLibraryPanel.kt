@@ -6,9 +6,12 @@ import net.rafkos.neuroshima.editor.command.AddLayerCommand
 import net.rafkos.neuroshima.editor.model.AssetPath
 import java.awt.BorderLayout
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.GridLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.RenderingHints
+import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 import javax.swing.BorderFactory
 import javax.swing.ImageIcon
@@ -46,14 +49,14 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
         south.add(JButton(ctx.locale.t("button.refresh")).apply {
             addActionListener { ctx.library.refreshUser(); rebuildTree(); selectRoot() }
         }, BorderLayout.WEST)
-        south.add(slider, BorderLayout.CENTER)
+        slider.preferredSize = Dimension(120, slider.preferredSize.height)
+        south.add(JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }, BorderLayout.EAST)
         add(south, BorderLayout.SOUTH)
 
         slider.addChangeListener { ctx.viewState.setAssetsThumbSize(slider.value); refreshPreview() }
         tree.addTreeSelectionListener(object : TreeSelectionListener {
             override fun valueChanged(e: TreeSelectionEvent?) { refreshPreview() }
         })
-        ctx.viewState.addListener { refreshPreview() }
 
         rebuildTree()
         selectRoot()
@@ -89,10 +92,17 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
         val node = selectedFolder() ?: return
         val size = ctx.viewState.assetsThumbSize
         for (asset in node.assets) {
-            val file = ctx.library.resolveFile(asset) ?: continue
-            val source = file.toFile().inputStream().use { ImageIO.read(it) } ?: continue
-            val scaled = source.getScaledInstance(size, size, java.awt.Image.SCALE_SMOOTH)
-            val lbl = JLabel(ImageIcon(scaled), JLabel.CENTER).apply {
+            val source = ctx.imageCache.get(asset) ?: run {
+                val file = ctx.library.resolveFile(asset) ?: return@run null
+                file.toFile().inputStream().use { ImageIO.read(it) }?.also { ctx.imageCache.put(asset, it) }
+            } ?: continue
+            val thumb = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB).also { t ->
+                val g = t.createGraphics()
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+                g.drawImage(source, 0, 0, size, size, null)
+                g.dispose()
+            }
+            val lbl = JLabel(ImageIcon(thumb), JLabel.CENTER).apply {
                 preferredSize = Dimension(size + 4, size + 4)
                 toolTipText = asset.uri
             }

@@ -2,7 +2,8 @@ package net.rafkos.neuroshima.editor.ui.tools
 
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.render.AffineBuilder
-import net.rafkos.neuroshima.editor.ui.canvas.LOGICAL_CENTER
+import net.rafkos.neuroshima.editor.ui.canvas.LOGICAL_CENTER_X
+import net.rafkos.neuroshima.editor.ui.canvas.LOGICAL_CENTER_Y
 import java.awt.event.MouseEvent
 import java.awt.geom.Point2D
 
@@ -16,7 +17,7 @@ class SelectTool : Tool {
         val logical = mapper.screenToLogical(e.point)
         val hitId = token.layers.asReversed().firstOrNull { layer ->
             val img = ctx.imageCache.get(layer.assetPath) ?: return@firstOrNull false
-            val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER, LOGICAL_CENTER, img.width, img.height)
+            val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER_X, LOGICAL_CENTER_Y, img.width, img.height)
             val inv = runCatching { xform.createInverse() }.getOrNull() ?: return@firstOrNull false
             val src = Point2D.Double()
             inv.transform(logical, src)

@@ -4,7 +4,8 @@ import java.awt.Point
 import java.awt.geom.AffineTransform
 import java.awt.geom.Point2D
 
-const val LOGICAL_CENTER: Double = 245.0   // = LOGICAL_TOKEN_SIZE_PX / 2.0
+const val LOGICAL_CENTER_X: Double = 522.0
+const val LOGICAL_CENTER_Y: Double = 451.0
 
 class CanvasMapper(
     private val widthSupplier: () -> Int,
@@ -31,7 +32,7 @@ class CanvasMapper(
         val t = AffineTransform()
         t.translate(widthSupplier() / 2.0 + panXSupplier(), heightSupplier() / 2.0 + panYSupplier())
         t.scale(zoomSupplier().toDouble(), zoomSupplier().toDouble())
-        t.translate(-LOGICAL_CENTER, -LOGICAL_CENTER)
+        t.translate(-LOGICAL_CENTER_X, -LOGICAL_CENTER_Y)
         return t
     }
 }

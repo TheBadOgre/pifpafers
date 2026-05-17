@@ -28,10 +28,10 @@ class CanvasMapperTest {
     }
 
     @Test
-    fun `center of canvas at zoom 1 no pan maps to logical 245 245`() {
-        val m = mapper(490, 490, zoom = 1f, panX = 0, panY = 0)
-        val p = m.screenToLogical(Point(245, 245))
-        assertEquals(245.0, p.x, 0.001)
-        assertEquals(245.0, p.y, 0.001)
+    fun `center of canvas at zoom 1 no pan maps to logical center`() {
+        val m = mapper(1044, 902, zoom = 1f, panX = 0, panY = 0)
+        val p = m.screenToLogical(Point(522, 451))
+        assertEquals(522.0, p.x, 0.001)
+        assertEquals(451.0, p.y, 0.001)
     }
 }

@@ -66,22 +66,24 @@ class TokenRendererTest {
     }
 
     @Test
-    fun `fits 490 logical token area into thumbnail square - offset layer lands proportionally`() {
+    fun `fits inner hex bounding box into thumbnail square - offset layer lands proportionally`() {
         val cache = ImageCache(16)
         val asset = AssetPath.Bundled("dot.png")
-        cache.put(asset, solid(Color.RED, w = 20, h = 20))
-        // Layer offset +200 logical px on x axis. At sizePx=98 the fit-scale = 98/490 = 0.2.
-        // Expected on-screen offset from center: 200 * 0.2 = 40 px. Image size 20 * 0.2 = 4 px.
-        // So red pixel should appear near (49+40, 49) = (89, 49), not near native (49+200,49).
+        cache.put(asset, solid(Color.RED, w = 200, h = 200))
+        // Inner hex bbox: X0=82, W=880. Layer offset +200 logical px on x axis.
+        // At sizePx=88: fit=88/880=0.1. Layer center: logical (522+200,451)=(722,451).
+        // Screen x=(722-82)*0.1=64.0. scaledH=762*0.1=76.2, offsetY=(88-76.2)/2=5.9.
+        // Screen y=(451-70)*0.1+5.9=38.1+5.9=44. Image 200x200 at output=20x20px.
+        // Screen center x=(522-82)*0.1=44.0 — uncovered by dot at x=64.
         val token = Token.createUnit().apply {
             addLayer(Layer.create(asset, LayerProperties(offsetX = 200, offsetY = 0)))
         }
-        val out = TokenRenderer(cache, ProcessedLayerCache(16)).render(token, sizePx = 98)
-        val argbHit = out.getRGB(89, 49)
+        val out = TokenRenderer(cache, ProcessedLayerCache(16)).render(token, sizePx = 88)
+        val argbHit = out.getRGB(64, 44)
         val alphaHit = (argbHit ushr 24) and 0xff
-        assert(alphaHit > 200) { "expected red dot near (89,49), alpha=$alphaHit" }
-        val argbCenter = out.getRGB(49, 49)
+        assert(alphaHit > 200) { "expected red dot near (64,44), alpha=$alphaHit" }
+        val argbCenter = out.getRGB(44, 44)
         val alphaCenter = (argbCenter ushr 24) and 0xff
-        assertEquals(0, alphaCenter, "center should be transparent; got alpha=$alphaCenter")
+        assertEquals(0, alphaCenter, "screen center should be transparent; got alpha=$alphaCenter")
     }
 }
