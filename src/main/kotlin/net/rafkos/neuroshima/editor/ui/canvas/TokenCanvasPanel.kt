@@ -7,6 +7,7 @@ import net.rafkos.neuroshima.editor.render.AffineBuilder
 import net.rafkos.neuroshima.editor.render.LOGICAL_TOKEN_SIZE_PX
 import net.rafkos.neuroshima.editor.render.LayerRenderer
 import net.rafkos.neuroshima.editor.render.ProcessedLayerCache
+import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
@@ -14,6 +15,8 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.geom.Line2D
+import java.awt.geom.Point2D
 import java.awt.image.BufferedImage
 import java.util.UUID
 import javax.imageio.ImageIO
@@ -137,11 +140,65 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         val tokenId = ctx.viewState.activeTokenId
         if (tokenId != null) {
             g2.drawImage(ensureComposite(tokenId), 0, 0, null)
+            drawSelectionMarkers(g2, tokenId)
         }
         if (ctx.viewState.showOverlay && overlay != null) {
             val ox = (LOGICAL_SIZE_PX - overlay.width) / 2
             val oy = (LOGICAL_SIZE_PX - overlay.height) / 2
             g2.drawImage(overlay, ox, oy, null)
+        }
+    }
+
+    private fun drawSelectionMarkers(g2: Graphics2D, tokenId: UUID) {
+        val selected = ctx.viewState.selectedLayers
+        if (selected.isEmpty()) return
+        val token = ctx.bag.findToken(tokenId) ?: return
+        val composite = compositeCache ?: return
+        g2.stroke = BasicStroke(1.5f)
+        for (layer in token.layers) {
+            if (layer.id !in selected) continue
+            val img = ctx.imageCache.get(layer.assetPath) ?: continue
+            val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER, LOGICAL_CENTER, img.width, img.height)
+            val corners = arrayOf(
+                Point2D.Double(0.0, 0.0),
+                Point2D.Double(img.width.toDouble(), 0.0),
+                Point2D.Double(img.width.toDouble(), img.height.toDouble()),
+                Point2D.Double(0.0, img.height.toDouble()),
+            )
+            val projected = corners.map { xform.transform(it, null) as Point2D.Double }
+            for (i in 0 until 4) {
+                drawDashedEdge(g2, projected[i], projected[(i + 1) % 4], composite)
+            }
+        }
+    }
+
+    private fun drawDashedEdge(
+        g2: Graphics2D,
+        a: Point2D.Double,
+        b: Point2D.Double,
+        sampleSource: BufferedImage,
+    ) {
+        val dx = b.x - a.x; val dy = b.y - a.y
+        val len = kotlin.math.hypot(dx, dy)
+        if (len < 1.0) return
+        val segLogical = 8.0
+        val steps = kotlin.math.max(2, (len / segLogical).toInt())
+        val nx = dx / steps; val ny = dy / steps
+        var t = 0
+        while (t < steps) {
+            if (t % 2 == 0) {
+                val x0 = a.x + nx * t; val y0 = a.y + ny * t
+                val x1 = a.x + nx * (t + 1); val y1 = a.y + ny * (t + 1)
+                val mx = ((x0 + x1) / 2).toInt().coerceIn(0, sampleSource.width - 1)
+                val my = ((y0 + y1) / 2).toInt().coerceIn(0, sampleSource.height - 1)
+                val argb = sampleSource.getRGB(mx, my)
+                val r = 255 - ((argb ushr 16) and 0xff)
+                val gr = 255 - ((argb ushr 8) and 0xff)
+                val bl = 255 - (argb and 0xff)
+                g2.color = Color(r, gr, bl)
+                g2.draw(Line2D.Double(x0, y0, x1, y1))
+            }
+            t++
         }
     }
 }
