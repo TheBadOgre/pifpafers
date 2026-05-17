@@ -8,7 +8,6 @@ import net.rafkos.neuroshima.editor.render.LOGICAL_CANVAS_W
 import net.rafkos.neuroshima.editor.render.LayerRenderer
 import net.rafkos.neuroshima.editor.render.ProcessedLayerCache
 import net.rafkos.neuroshima.editor.render.TokenShape
-import net.rafkos.neuroshima.editor.render.UnitTokenShape
 import net.rafkos.neuroshima.editor.render.overlay.OverlayPainter
 import java.awt.BasicStroke
 import java.awt.Color
@@ -136,24 +135,23 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
 
         val tokenId = ctx.viewState.activeTokenId
         val token   = if (tokenId != null) ctx.bag.findToken(tokenId) else null
-        val shape   = if (token != null) TokenShape.forKind(token.kind) else UnitTokenShape
-        val clip    = if (ctx.viewState.showOverlay) shape.bleedShape() else shape.clipShape()
+
+        if (token == null) return  // dark grey background already painted by super
+
+        val shape = TokenShape.forKind(token.kind)
+        val clip  = if (ctx.viewState.showOverlay) shape.bleedShape() else shape.clipShape()
         g2.clip = clip
 
         g2.color = Color(220, 220, 220)
         g2.fillRect(0, 0, LOGICAL_CANVAS_W, LOGICAL_CANVAS_H)
 
-        if (tokenId != null) {
-            g2.drawImage(ensureComposite(tokenId), 0, 0, null)
-        }
+        g2.drawImage(ensureComposite(tokenId!!), 0, 0, null)
 
-        if (ctx.viewState.showOverlay && token != null) {
+        if (ctx.viewState.showOverlay) {
             OverlayPainter.forKind(token.kind).paint(g2)
         }
 
-        if (tokenId != null) {
-            drawSelectionMarkers(g2, tokenId)
-        }
+        drawSelectionMarkers(g2, tokenId)
     }
 
     private fun drawSelectionMarkers(g2: Graphics2D, tokenId: UUID) {
