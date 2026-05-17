@@ -23,12 +23,12 @@ private val rules: List<Rule> = listOf(
         allowedImports = listOf("java.awt.geom"),
     ),
     Rule(
-        name = "R2: command depends on model only (no Swing/AWT, no ui)",
+        name = "R2: command depends on model only",
         source = "$BASE.command",
         forbidden = listOf("javax.swing", "java.awt", "$BASE.ui"),
     ),
     Rule(
-        name = "R3: persistence does not depend on command or ui",
+        name = "R3: persistence has no Swing/AWT/ui/command (assets allowed)",
         source = "$BASE.persistence",
         forbidden = listOf("javax.swing", "java.awt", "$BASE.ui", "$BASE.command"),
     ),
@@ -48,6 +48,16 @@ private val rules: List<Rule> = listOf(
         name = "R6: i18n is leaf",
         source = "$BASE.i18n",
         forbidden = listOf("javax.swing", "java.awt", "$BASE.ui", "$BASE.model", "$BASE.command"),
+    ),
+    Rule(
+        name = "R7: prefs is leaf",
+        source = "$BASE.prefs",
+        forbidden = listOf("javax.swing", "java.awt", "$BASE.ui", "$BASE.model"),
+    ),
+    Rule(
+        name = "R8: ui.tools may not depend on persistence",
+        source = "$BASE.ui.tools",
+        forbidden = listOf("$BASE.persistence"),
     ),
 )
 
