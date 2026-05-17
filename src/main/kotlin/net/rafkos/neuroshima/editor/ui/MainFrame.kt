@@ -33,6 +33,9 @@ class MainFrame(val ctx: AppContext) : JFrame() {
     val statusBar: JPanel = StatusBar(ctx)
 
     val canvasComponent: TokenCanvasPanel = TokenCanvasPanel(ctx)
+
+    init { ctx.canvasMapper = canvasComponent.mapper }
+
     val canvasPanel: JPanel = JPanel(BorderLayout()).apply {
         add(canvasComponent, BorderLayout.CENTER)
         val toggle = JCheckBox(ctx.locale.t("button.show.overlay")).apply {
@@ -95,13 +98,13 @@ class MainFrame(val ctx: AppContext) : JFrame() {
 
         addWindowListener(object : WindowAdapter() {
             override fun windowClosing(e: WindowEvent) {
-                if (!ctx.dirty) { ctx.savePrefs(); dispose(); System.exit(0); return }
+                if (!ctx.dirty) { ctx.savePrefs(); ctx.shutdown(); dispose(); System.exit(0); return }
                 when (SaveBeforeCloseDialog.ask(this@MainFrame)) {
                     SaveBeforeCloseDialog.Result.SAVE -> {
-                        if (menuBuilder.save()) { ctx.savePrefs(); dispose(); System.exit(0) }
+                        if (menuBuilder.save()) { ctx.savePrefs(); ctx.shutdown(); dispose(); System.exit(0) }
                     }
                     SaveBeforeCloseDialog.Result.DISCARD -> {
-                        ctx.savePrefs(); dispose(); System.exit(0)
+                        ctx.savePrefs(); ctx.shutdown(); dispose(); System.exit(0)
                     }
                     SaveBeforeCloseDialog.Result.CANCEL -> { /* stay open */ }
                 }
