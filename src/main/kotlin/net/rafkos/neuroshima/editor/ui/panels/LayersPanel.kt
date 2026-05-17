@@ -6,14 +6,18 @@ import net.rafkos.neuroshima.editor.command.RemoveLayerCommand
 import net.rafkos.neuroshima.editor.command.ReorderLayerCommand
 import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.ui.icon.Icons
+import java.awt.BasicStroke
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.Insets
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.util.UUID
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
@@ -25,13 +29,28 @@ import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JSlider
 import javax.swing.SwingConstants
+import javax.swing.SwingUtilities
 
 private const val BTN = 28
 
 class LayersPanel(private val ctx: AppContext) : JPanel() {
 
-    private val list   = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+    private val list = object : JPanel() {
+        init { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        override fun paintChildren(g: Graphics) {
+            super.paintChildren(g)
+            val dy = dragY
+            if (dy < 0 || dragLayerId == null) return
+            val g2 = g as Graphics2D
+            g2.color = java.awt.Color(0x2196F3)
+            g2.stroke = java.awt.BasicStroke(2f)
+            g2.drawLine(4, dy, width - 4, dy)
+        }
+    }
     private val slider = JSlider(48, 192, ctx.viewState.layersThumbSize)
+
+    private var dragLayerId: UUID? = null
+    private var dragY: Int = -1
 
     init {
         layout = BorderLayout()
@@ -116,6 +135,31 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                         }
                     }
                 })
+                val capturedLayerId = layer.id
+                val dragAdapter = object : MouseAdapter() {
+                    override fun mousePressed(e: MouseEvent) {
+                        if (e.button != MouseEvent.BUTTON1) return
+                        if (capturedLayerId !in ctx.viewState.selectedLayers) return
+                        dragLayerId = capturedLayerId
+                        dragY = SwingUtilities.convertPoint(row, e.point, list).y
+                        list.repaint()
+                    }
+                    override fun mouseDragged(e: MouseEvent) {
+                        if (dragLayerId == null) return
+                        dragY = SwingUtilities.convertPoint(row, e.point, list).y.coerceIn(0, list.height)
+                        list.repaint()
+                    }
+                    override fun mouseReleased(e: MouseEvent) {
+                        if (dragLayerId == null || e.button != MouseEvent.BUTTON1) return
+                        val finalY = SwingUtilities.convertPoint(row, e.point, list).y.coerceIn(0, list.height)
+                        commitDrop(finalY)
+                        dragLayerId = null
+                        dragY = -1
+                        list.repaint()
+                    }
+                }
+                row.addMouseListener(dragAdapter)
+                row.addMouseMotionListener(dragAdapter)
                 list.add(row)
             }
         } else {
@@ -123,5 +167,30 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
         }
         list.add(Box.createVerticalGlue())
         list.revalidate(); list.repaint()
+    }
+
+    private fun commitDrop(dropY: Int) {
+        val activeId = ctx.viewState.activeTokenId ?: return
+        val token = ctx.bag.findToken(activeId) ?: return
+        val selected = ctx.viewState.selectedLayers
+        if (selected.isEmpty()) return
+
+        val rowH = if (list.componentCount > 1) {
+            val firstRow = list.getComponent(0)
+            firstRow.height.takeIf { it > 0 } ?: (ctx.viewState.layersThumbSize + 8)
+        } else {
+            ctx.viewState.layersThumbSize + 8
+        }
+        val reversedLayerCount = token.layers.size
+        val visualDropIndex = (dropY / rowH).coerceIn(0, reversedLayerCount)
+        val targetLayersIndex = (reversedLayerCount - visualDropIndex).coerceIn(0, reversedLayerCount)
+
+        val selectedSorted = token.layers.filter { it.id in selected }
+        for (layer in selectedSorted) {
+            val currentIdx = token.layers.indexOfFirst { it.id == layer.id }
+            if (currentIdx != targetLayersIndex) {
+                ctx.history.execute(ctx.bag, ReorderLayerCommand(activeId, layer.id, targetLayersIndex))
+            }
+        }
     }
 }
