@@ -27,7 +27,7 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
 
     private fun fileMenu(): JMenu {
         val m = JMenu(ctx.locale.t("menu.file"))
-        m.add(JMenuItem("Open...").apply {
+        m.add(JMenuItem(ctx.locale.t("menu.file.open")).apply {
             accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK)
             addActionListener { open() }
         })

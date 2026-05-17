@@ -5,6 +5,7 @@ import net.rafkos.neuroshima.editor.command.LayerProperty
 import net.rafkos.neuroshima.editor.command.MultiLayerPropertyCommand
 import java.awt.Cursor
 import java.awt.event.MouseEvent
+import kotlin.math.roundToInt
 
 class RotateTool : Tool {
     private var startX: Int = 0
@@ -26,7 +27,8 @@ class RotateTool : Tool {
 
     override fun onMouseDragged(ctx: AppContext, e: MouseEvent) {
         if (startTargets.isEmpty()) return
-        val degrees = (e.x - startX).toDouble()
+        val raw = (e.x - startX).toDouble()
+        val degrees = if (e.isControlDown) raw else (raw / 60.0).roundToInt() * 60.0
         ctx.history.execute(ctx.bag, MultiLayerPropertyCommand(
             property = LayerProperty.ROTATION,
             targets = startTargets.map { it.copy(newValue = it.oldValue + degrees) },

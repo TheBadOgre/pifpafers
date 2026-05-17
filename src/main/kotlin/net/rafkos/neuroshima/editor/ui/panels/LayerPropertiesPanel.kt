@@ -4,6 +4,7 @@ import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.LayerProperty
 import net.rafkos.neuroshima.editor.command.SetLayerPropertyCommand
 import net.rafkos.neuroshima.editor.model.Layer
+import net.rafkos.neuroshima.editor.model.ModelEvent
 import java.awt.BorderLayout
 import java.awt.GridLayout
 import java.util.UUID
@@ -12,17 +13,27 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
-import javax.swing.event.ChangeListener
 
 class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
 
     private val content = JPanel(GridLayout(0, 2, 4, 2))
+    private val spinnerMap = mutableMapOf<LayerProperty, JSpinner>()
+    private var displayedLayerId: UUID? = null
+    private var suppressChange = false
 
     init {
         layout = BorderLayout()
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.properties"))
         add(content, BorderLayout.NORTH)
-        ctx.bag.addListener { rebuild() }
+        ctx.bag.addListener { event ->
+            when (event) {
+                is ModelEvent.LayerAdded,
+                is ModelEvent.LayerRemoved,
+                is ModelEvent.LayerReordered,
+                is ModelEvent.LayerPropsChanged -> rebuild()
+                else -> {}
+            }
+        }
         ctx.viewState.addListener { rebuild() }
         rebuild()
     }
@@ -37,48 +48,82 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
     }
 
     private fun rebuild() {
-        content.removeAll()
         val pair = activeLayer()
         if (pair == null) {
-            content.add(JLabel("No single layer selected"))
+            if (displayedLayerId == null) return
+            displayedLayerId = null
+            spinnerMap.clear()
+            content.removeAll()
+            content.add(JLabel(ctx.locale.t("label.no.layer")))
             content.add(JLabel(""))
             content.revalidate(); content.repaint()
             return
         }
         val (tokenId, layer) = pair
-        val rows = listOf(
-            LayerProperty.OFFSET_X to layer.props.offsetX.toDouble(),
-            LayerProperty.OFFSET_Y to layer.props.offsetY.toDouble(),
-            LayerProperty.ROTATION to layer.props.rotation.toDouble(),
-            LayerProperty.SCALE to layer.props.scale.toDouble(),
-            LayerProperty.OPACITY to layer.props.opacity.toDouble(),
-            LayerProperty.HUE to layer.props.hue.toDouble(),
-            LayerProperty.SATURATION to layer.props.saturation.toDouble(),
-            LayerProperty.BRIGHTNESS to layer.props.brightness.toDouble(),
+        if (layer.id == displayedLayerId) {
+            for ((prop, spinner) in spinnerMap) {
+                val v = propValue(layer, prop)
+                if ((spinner.value as Number).toDouble() != v) {
+                    suppressChange = true
+                    spinner.value = v
+                    suppressChange = false
+                }
+            }
+            return
+        }
+        displayedLayerId = layer.id
+        spinnerMap.clear()
+        content.removeAll()
+        val props = listOf(
+            LayerProperty.OFFSET_X,
+            LayerProperty.OFFSET_Y,
+            LayerProperty.ROTATION,
+            LayerProperty.SCALE,
+            LayerProperty.OPACITY,
+            LayerProperty.HUE,
+            LayerProperty.SATURATION,
+            LayerProperty.BRIGHTNESS,
         )
-        for ((prop, value) in rows) {
+        for (prop in props) {
+            val value = propValue(layer, prop)
             content.add(JLabel(ctx.locale.t(prop.labelKey())))
             val (min, max, step) = bounds(prop)
             val model = SpinnerNumberModel(value, min, max, step)
             val spinner = JSpinner(model)
-            spinner.addChangeListener(ChangeListener {
+            val capturedProp = prop
+            spinner.addChangeListener {
+                if (suppressChange) return@addChangeListener
                 val newValue = (spinner.value as Number).toDouble()
+                val currentLayer = ctx.bag.findToken(tokenId)?.findLayer(layer.id) ?: return@addChangeListener
+                val oldValue = propValue(currentLayer, capturedProp)
                 ctx.history.execute(ctx.bag, SetLayerPropertyCommand(
                     tokenId = tokenId,
                     layerId = layer.id,
-                    property = prop,
-                    oldValue = value,
+                    property = capturedProp,
+                    oldValue = oldValue,
                     newValue = newValue,
                 ))
-            })
+            }
+            spinnerMap[prop] = spinner
             content.add(spinner)
         }
         content.revalidate(); content.repaint()
     }
 
+    private fun propValue(layer: Layer, prop: LayerProperty): Double = when (prop) {
+        LayerProperty.OFFSET_X -> layer.props.offsetX.toDouble()
+        LayerProperty.OFFSET_Y -> layer.props.offsetY.toDouble()
+        LayerProperty.ROTATION -> layer.props.rotation.toDouble()
+        LayerProperty.SCALE -> layer.props.scale.toDouble()
+        LayerProperty.OPACITY -> layer.props.opacity.toDouble()
+        LayerProperty.HUE -> layer.props.hue.toDouble()
+        LayerProperty.SATURATION -> layer.props.saturation.toDouble()
+        LayerProperty.BRIGHTNESS -> layer.props.brightness.toDouble()
+    }
+
     private fun bounds(p: LayerProperty): Triple<Double, Double, Double> = when (p) {
         LayerProperty.OFFSET_X, LayerProperty.OFFSET_Y -> Triple(-1000.0, 1000.0, 1.0)
-        LayerProperty.ROTATION -> Triple(-360.0, 360.0, 1.0)
+        LayerProperty.ROTATION -> Triple(-360.0, 360.0, 60.0)
         LayerProperty.SCALE -> Triple(0.01, 10.0, 0.05)
         LayerProperty.OPACITY -> Triple(0.0, 1.0, 0.05)
         LayerProperty.HUE -> Triple(0.0, 1.0, 0.01)

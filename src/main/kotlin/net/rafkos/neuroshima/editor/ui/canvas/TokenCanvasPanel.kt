@@ -1,41 +1,31 @@
 package net.rafkos.neuroshima.editor.ui.canvas
 
 import net.rafkos.neuroshima.editor.app.AppContext
-import net.rafkos.neuroshima.editor.app.AppDirs
 import net.rafkos.neuroshima.editor.model.ModelEvent
-import net.rafkos.neuroshima.editor.model.TokenKind
 import net.rafkos.neuroshima.editor.render.AffineBuilder
 import net.rafkos.neuroshima.editor.render.LOGICAL_CANVAS_H
 import net.rafkos.neuroshima.editor.render.LOGICAL_CANVAS_W
 import net.rafkos.neuroshima.editor.render.LayerRenderer
 import net.rafkos.neuroshima.editor.render.ProcessedLayerCache
+import net.rafkos.neuroshima.editor.render.TokenShape
+import net.rafkos.neuroshima.editor.render.UnitTokenShape
+import net.rafkos.neuroshima.editor.render.overlay.OverlayPainter
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
-import java.awt.Polygon
 import java.awt.RenderingHints
-import java.awt.Shape
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import java.awt.geom.Ellipse2D
 import java.awt.geom.Line2D
 import java.awt.geom.Point2D
 import java.awt.image.BufferedImage
 import java.util.UUID
-import javax.imageio.ImageIO
 import javax.swing.JPanel
-
-private val HEX_CLIP = Polygon(
-    intArrayOf(1044, 783, 261, 0, 261, 783),
-    intArrayOf(451, 0, 0, 451, 902, 902),
-    6,
-)
 
 class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
 
-    private val overlay: BufferedImage? = loadOverlay()
     var panX: Int = 0
     var panY: Int = 0
     private var panning: Boolean = false
@@ -43,11 +33,11 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
     private var panOriginY: Int = 0
 
     val mapper: CanvasMapper = CanvasMapper(
-        widthSupplier = { width },
+        widthSupplier  = { width },
         heightSupplier = { height },
-        zoomSupplier = { ctx.viewState.zoom },
-        panXSupplier = { panX },
-        panYSupplier = { panY },
+        zoomSupplier   = { ctx.viewState.zoom },
+        panXSupplier   = { panX },
+        panYSupplier   = { panY },
     )
 
     private var compositeCache: BufferedImage? = null
@@ -96,12 +86,6 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         })
     }
 
-    private fun loadOverlay(): BufferedImage? {
-        val file = AppDirs.overlayRoot.resolve("overlay.png")
-        if (!file.isFile) return null
-        return file.inputStream().use { ImageIO.read(it) }
-    }
-
     private fun ensureComposite(tokenId: UUID): BufferedImage {
         val cached = compositeCache
         if (cached != null && compositeForTokenId == tokenId) return cached
@@ -139,40 +123,41 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         val g2 = graphics as Graphics2D
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
         val zoom = ctx.viewState.zoom
-        val centerX = width / 2.0
-        val centerY = height / 2.0
-        g2.translate(centerX + panX, centerY + panY)
+        g2.translate(width / 2.0 + panX, height / 2.0 + panY)
         g2.scale(zoom.toDouble(), zoom.toDouble())
         g2.translate(-LOGICAL_CENTER_X, -LOGICAL_CENTER_Y)
+
         val tokenId = ctx.viewState.activeTokenId
-        val token = if (tokenId != null) ctx.bag.findToken(tokenId) else null
-        val clip: Shape = if (token?.kind == TokenKind.MODIFIER)
-            Ellipse2D.Double(LOGICAL_CENTER_X - 220.0, LOGICAL_CENTER_Y - 220.0, 440.0, 440.0)
-        else
-            HEX_CLIP
-        g2.clip(clip)
+        val token   = if (tokenId != null) ctx.bag.findToken(tokenId) else null
+        val shape   = if (token != null) TokenShape.forKind(token.kind) else UnitTokenShape
+        val clip    = if (ctx.viewState.showOverlay) shape.bleedShape() else shape.clipShape()
+        g2.clip = clip
+
         g2.color = Color(220, 220, 220)
         g2.fillRect(0, 0, LOGICAL_CANVAS_W, LOGICAL_CANVAS_H)
+
         if (tokenId != null) {
             g2.drawImage(ensureComposite(tokenId), 0, 0, null)
-            drawSelectionMarkers(g2, tokenId)
         }
-        if (ctx.viewState.showOverlay && overlay != null) {
-            val ox = (LOGICAL_CANVAS_W - overlay.width) / 2
-            val oy = (LOGICAL_CANVAS_H - overlay.height) / 2
-            g2.drawImage(overlay, ox, oy, null)
+
+        if (ctx.viewState.showOverlay && token != null) {
+            OverlayPainter.forKind(token.kind).paint(g2)
+        }
+
+        if (tokenId != null) {
+            drawSelectionMarkers(g2, tokenId)
         }
     }
 
     private fun drawSelectionMarkers(g2: Graphics2D, tokenId: UUID) {
         val selected = ctx.viewState.selectedLayers
         if (selected.isEmpty()) return
-        val token = ctx.bag.findToken(tokenId) ?: return
+        val token     = ctx.bag.findToken(tokenId) ?: return
         val composite = compositeCache ?: return
         g2.stroke = BasicStroke(1.5f)
         for (layer in token.layers) {
             if (layer.id !in selected) continue
-            val img = ctx.imageCache.get(layer.assetPath) ?: continue
+            val img   = ctx.imageCache.get(layer.assetPath) ?: continue
             val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER_X, LOGICAL_CENTER_Y, img.width, img.height)
             val corners = arrayOf(
                 Point2D.Double(0.0, 0.0),
@@ -187,30 +172,23 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         }
     }
 
-    private fun drawDashedEdge(
-        g2: Graphics2D,
-        a: Point2D.Double,
-        b: Point2D.Double,
-        sampleSource: BufferedImage,
-    ) {
+    private fun drawDashedEdge(g2: Graphics2D, a: Point2D.Double, b: Point2D.Double, src: BufferedImage) {
         val dx = b.x - a.x; val dy = b.y - a.y
         val len = kotlin.math.hypot(dx, dy)
         if (len < 1.0) return
-        val segLogical = 8.0
-        val steps = kotlin.math.max(2, (len / segLogical).toInt())
+        val steps = kotlin.math.max(2, (len / 8.0).toInt())
         val nx = dx / steps; val ny = dy / steps
         var t = 0
         while (t < steps) {
             if (t % 2 == 0) {
                 val x0 = a.x + nx * t; val y0 = a.y + ny * t
                 val x1 = a.x + nx * (t + 1); val y1 = a.y + ny * (t + 1)
-                val mx = ((x0 + x1) / 2).toInt().coerceIn(0, sampleSource.width - 1)
-                val my = ((y0 + y1) / 2).toInt().coerceIn(0, sampleSource.height - 1)
-                val argb = sampleSource.getRGB(mx, my)
-                val r = 255 - ((argb ushr 16) and 0xff)
-                val gr = 255 - ((argb ushr 8) and 0xff)
-                val bl = 255 - (argb and 0xff)
-                g2.color = Color(r, gr, bl)
+                val mx = ((x0 + x1) / 2).toInt().coerceIn(0, src.width - 1)
+                val my = ((y0 + y1) / 2).toInt().coerceIn(0, src.height - 1)
+                val argb = src.getRGB(mx, my)
+                g2.color = Color(255 - ((argb ushr 16) and 0xff),
+                                 255 - ((argb ushr  8) and 0xff),
+                                 255 - (argb and 0xff))
                 g2.draw(Line2D.Double(x0, y0, x1, y1))
             }
             t++

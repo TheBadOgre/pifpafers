@@ -10,7 +10,8 @@ class AddTokenCommand(
     private val atIndex: Int,
 ) : Command {
     override val label: String = "Add ${kind.name.lowercase()} token"
-    private var createdId: UUID? = null
+    var createdId: UUID? = null
+        private set
 
     override fun execute(bag: TokenBag) {
         val token = when (kind) {

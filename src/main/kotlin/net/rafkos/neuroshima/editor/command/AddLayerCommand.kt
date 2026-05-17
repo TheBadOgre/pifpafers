@@ -13,7 +13,8 @@ class AddLayerCommand(
     private val atIndex: Int? = null,
 ) : Command {
     override val label: String = "Add layer"
-    private var layerId: UUID? = null
+    var layerId: UUID? = null
+        private set
 
     override fun execute(bag: TokenBag) {
         val id = layerId ?: UUID.randomUUID().also { layerId = it }

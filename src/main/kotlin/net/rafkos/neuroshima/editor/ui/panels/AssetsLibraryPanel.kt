@@ -4,13 +4,15 @@ import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.assets.AssetTreeNode
 import net.rafkos.neuroshima.editor.command.AddLayerCommand
 import net.rafkos.neuroshima.editor.model.AssetPath
+import net.rafkos.neuroshima.editor.ui.WrapLayout
+import net.rafkos.neuroshima.editor.ui.icon.Icons
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
-import java.awt.GridLayout
+import java.awt.Insets
+import java.awt.RenderingHints
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 import javax.swing.BorderFactory
@@ -28,13 +30,15 @@ import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreePath
 
+private const val BTN = 32
+
 private class FolderUserObject(val node: AssetTreeNode) {
     override fun toString(): String = node.name.ifEmpty { "content" }
 }
 
 class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
 
-    private val previewGrid = JPanel(GridLayout(0, 4, 4, 4))
+    private val previewGrid = JPanel(WrapLayout(FlowLayout.LEFT, 4, 4))
     private val tree = JTree(DefaultTreeModel(DefaultMutableTreeNode(FolderUserObject(AssetTreeNode("")))))
     private val slider = JSlider(48, 192, ctx.viewState.assetsThumbSize)
 
@@ -46,8 +50,18 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
         add(split, BorderLayout.CENTER)
 
         val south = JPanel(BorderLayout())
-        south.add(JButton(ctx.locale.t("button.refresh")).apply {
-            addActionListener { ctx.library.refreshUser(); rebuildTree(); selectRoot() }
+        south.add(JButton(Icons.assetsRefresh).apply {
+            toolTipText   = ctx.locale.t("button.refresh")
+            preferredSize = Dimension(BTN, BTN)
+            minimumSize   = Dimension(BTN, BTN)
+            maximumSize   = Dimension(BTN, BTN)
+            margin        = Insets(2, 2, 2, 2)
+            addActionListener {
+                val savedPath = currentFolderNames()
+                ctx.library.refreshUser()
+                rebuildTree()
+                restorePath(savedPath)
+            }
         }, BorderLayout.WEST)
         slider.preferredSize = Dimension(120, slider.preferredSize.height)
         south.add(JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }, BorderLayout.EAST)
@@ -81,6 +95,25 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
         tree.selectionPath = TreePath(root.path)
     }
 
+    private fun currentFolderNames(): List<String> {
+        val path = tree.selectionPath ?: return emptyList()
+        return path.path.drop(1).map { (it as DefaultMutableTreeNode).userObject.toString() }
+    }
+
+    private fun restorePath(names: List<String>) {
+        if (names.isEmpty()) { selectRoot(); return }
+        val root = tree.model.root as DefaultMutableTreeNode
+        var node: DefaultMutableTreeNode = root
+        for (name in names) {
+            val child = (0 until node.childCount)
+                .mapNotNull { node.getChildAt(it) as? DefaultMutableTreeNode }
+                .firstOrNull { it.userObject.toString() == name }
+                ?: run { tree.selectionPath = TreePath(node.path); return }
+            node = child
+        }
+        tree.selectionPath = TreePath(node.path)
+    }
+
     private fun selectedFolder(): AssetTreeNode? {
         val path = tree.selectionPath ?: return null
         val last = path.lastPathComponent as DefaultMutableTreeNode
@@ -107,7 +140,7 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
                 toolTipText = asset.uri
             }
             lbl.addMouseListener(object : MouseAdapter() {
-                override fun mouseClicked(e: MouseEvent) {
+                override fun mousePressed(e: MouseEvent) {
                     if (e.clickCount == 2 && e.button == MouseEvent.BUTTON1) addLayer(asset)
                 }
             })
@@ -122,6 +155,8 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
             val img = p.toFile().inputStream().use { ImageIO.read(it) }
             if (img != null) ctx.imageCache.put(asset, img)
         }
-        ctx.history.execute(ctx.bag, AddLayerCommand(tokenId, asset))
+        val cmd = AddLayerCommand(tokenId, asset)
+        ctx.history.execute(ctx.bag, cmd)
+        cmd.layerId?.let { ctx.viewState.replaceSelection(listOf(it)) }
     }
 }

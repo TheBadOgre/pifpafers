@@ -25,7 +25,7 @@ import javax.swing.WindowConstants
 
 class MainFrame(val ctx: AppContext) : JFrame() {
 
-    val toolPalette: JPanel = ToolPalettePanel(ctx.viewState).apply { preferredSize = Dimension(56, 0) }
+    val toolPalette: JPanel = ToolPalettePanel(ctx.viewState, ctx.locale).apply { preferredSize = Dimension(40, 0) }
     val tokensPanel: JPanel = TokensCollectionPanel(ctx, ctx.thumbnails).apply { preferredSize = Dimension(240, 0) }
     val layersPanel: JPanel = LayersPanel(ctx).apply { preferredSize = Dimension(260, 240) }
     val propertiesPanel: JPanel = LayerPropertiesPanel(ctx).apply { preferredSize = Dimension(260, 280) }
@@ -39,6 +39,7 @@ class MainFrame(val ctx: AppContext) : JFrame() {
     val canvasPanel: JPanel = JPanel(BorderLayout()).apply {
         add(canvasComponent, BorderLayout.CENTER)
         val toggle = JCheckBox(ctx.locale.t("button.show.overlay")).apply {
+            isSelected = ctx.viewState.showOverlay
             addActionListener { ctx.viewState.setShowOverlay(isSelected) }
         }
         add(toggle, BorderLayout.SOUTH)
@@ -53,7 +54,11 @@ class MainFrame(val ctx: AppContext) : JFrame() {
             resizeWeight = 0.5
             isContinuousLayout = true
         }
-        val centerWithRight = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, canvasPanel, rightStack).apply {
+        val toolAndRight = JPanel(BorderLayout()).apply {
+            add(toolPalette, BorderLayout.WEST)
+            add(rightStack, BorderLayout.CENTER)
+        }
+        val centerWithRight = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, canvasPanel, toolAndRight).apply {
             resizeWeight = 0.75
             isContinuousLayout = true
         }
@@ -61,11 +66,7 @@ class MainFrame(val ctx: AppContext) : JFrame() {
             resizeWeight = 0.15
             isContinuousLayout = true
         }
-        val top = JPanel(BorderLayout()).apply {
-            add(toolPalette, BorderLayout.WEST)
-            add(mainWithLeft, BorderLayout.CENTER)
-        }
-        val full = JSplitPane(JSplitPane.VERTICAL_SPLIT, top, assetsPanel).apply {
+        val full = JSplitPane(JSplitPane.VERTICAL_SPLIT, mainWithLeft, assetsPanel).apply {
             resizeWeight = 0.7
             isContinuousLayout = true
         }
