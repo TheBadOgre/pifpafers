@@ -63,7 +63,6 @@ val prepareLastRunTmp by tasks.registering(Copy::class) {
 tasks.named<JavaExec>("run") {
     dependsOn(prepareLastRunTmp)
     workingDir = lastRunTmpDir.asFile
-    systemProperty("app.dir", lastRunTmpDir.asFile.absolutePath)
 }
 
 val stageJpackageInput by tasks.registering(Copy::class) {

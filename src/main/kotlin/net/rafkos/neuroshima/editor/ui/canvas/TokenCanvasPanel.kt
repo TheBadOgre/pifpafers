@@ -11,9 +11,8 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import net.rafkos.neuroshima.editor.app.AppDirs
 import java.awt.image.BufferedImage
-import java.nio.file.Files
-import java.nio.file.Paths
 import javax.imageio.ImageIO
 import javax.swing.JPanel
 
@@ -60,10 +59,9 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
     }
 
     private fun loadOverlay(): BufferedImage? {
-        val appDir = System.getProperty("app.dir") ?: "."
-        val file = Paths.get(appDir).resolve("overlay/overlay.png")
-        if (!Files.isRegularFile(file)) return null
-        return file.toFile().inputStream().use { ImageIO.read(it) }
+        val file = AppDirs.overlayRoot.resolve("overlay.png")
+        if (!file.isFile) return null
+        return file.inputStream().use { ImageIO.read(it) }
     }
 
     override fun paintComponent(g: Graphics) {
