@@ -9,7 +9,7 @@ import net.rafkos.neuroshima.editor.render.LayerRenderer
 import net.rafkos.neuroshima.editor.render.ProcessedLayerCache
 import net.rafkos.neuroshima.editor.render.TokenShape
 import net.rafkos.neuroshima.editor.render.overlay.OverlayPainter
-import java.awt.BasicStroke
+import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
@@ -17,8 +17,6 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import java.awt.geom.Line2D
-import java.awt.geom.Point2D
 import java.awt.image.BufferedImage
 import java.util.UUID
 import javax.swing.JPanel
@@ -151,52 +149,37 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
             OverlayPainter.forKind(token.kind).paint(g2)
         }
 
-        drawSelectionMarkers(g2, tokenId)
+        drawSelectionHue(g2, tokenId)
     }
 
-    private fun drawSelectionMarkers(g2: Graphics2D, tokenId: UUID) {
+    private fun drawSelectionHue(g2: Graphics2D, tokenId: UUID) {
         val selected = ctx.viewState.selectedLayers
         if (selected.isEmpty()) return
-        val token     = ctx.bag.findToken(tokenId) ?: return
-        val composite = compositeCache ?: return
-        g2.stroke = BasicStroke(1.5f)
+        val token = ctx.bag.findToken(tokenId) ?: return
+        val savedComposite = g2.composite
         for (layer in token.layers) {
             if (layer.id !in selected) continue
-            val img   = ctx.imageCache.get(layer.assetPath) ?: continue
-            val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER_X, LOGICAL_CENTER_Y, img.width, img.height)
-            val corners = arrayOf(
-                Point2D.Double(0.0, 0.0),
-                Point2D.Double(img.width.toDouble(), 0.0),
-                Point2D.Double(img.width.toDouble(), img.height.toDouble()),
-                Point2D.Double(0.0, img.height.toDouble()),
-            )
-            val projected = corners.map { xform.transform(it, null) as Point2D.Double }
-            for (i in 0 until 4) {
-                drawDashedEdge(g2, projected[i], projected[(i + 1) % 4], composite)
-            }
+            val source = ctx.imageCache.get(layer.assetPath) ?: continue
+            val key = ProcessedLayerCache.Key(layer.assetPath, layer.props)
+            val processed = ctx.processedCache.get(key)
+                ?: LayerRenderer.applyPixelOps(source, layer.props).also { ctx.processedCache.put(key, it) }
+            val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER_X, LOGICAL_CENTER_Y, processed.width, processed.height)
+            val blue = tintBlue(processed)
+            g2.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f)
+            g2.drawImage(blue, xform, null)
         }
+        g2.composite = savedComposite
     }
 
-    private fun drawDashedEdge(g2: Graphics2D, a: Point2D.Double, b: Point2D.Double, src: BufferedImage) {
-        val dx = b.x - a.x; val dy = b.y - a.y
-        val len = kotlin.math.hypot(dx, dy)
-        if (len < 1.0) return
-        val steps = kotlin.math.max(2, (len / 8.0).toInt())
-        val nx = dx / steps; val ny = dy / steps
-        var t = 0
-        while (t < steps) {
-            if (t % 2 == 0) {
-                val x0 = a.x + nx * t; val y0 = a.y + ny * t
-                val x1 = a.x + nx * (t + 1); val y1 = a.y + ny * (t + 1)
-                val mx = ((x0 + x1) / 2).toInt().coerceIn(0, src.width - 1)
-                val my = ((y0 + y1) / 2).toInt().coerceIn(0, src.height - 1)
-                val argb = src.getRGB(mx, my)
-                g2.color = Color(255 - ((argb ushr 16) and 0xff),
-                                 255 - ((argb ushr  8) and 0xff),
-                                 255 - (argb and 0xff))
-                g2.draw(Line2D.Double(x0, y0, x1, y1))
+    private fun tintBlue(src: BufferedImage): BufferedImage {
+        val out = BufferedImage(src.width, src.height, BufferedImage.TYPE_INT_ARGB)
+        for (y in 0 until src.height) {
+            for (x in 0 until src.width) {
+                val argb = src.getRGB(x, y)
+                val a = (argb ushr 24) and 0xff
+                if (a > 0) out.setRGB(x, y, (a shl 24) or 0x0055ff)
             }
-            t++
         }
+        return out
     }
 }
