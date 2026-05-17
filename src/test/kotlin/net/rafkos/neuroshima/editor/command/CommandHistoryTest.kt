@@ -74,4 +74,51 @@ class CommandHistoryTest {
         assertFalse(history.canUndo())
         assertFalse(history.canRedo())
     }
+
+    private class Mergeable(
+        override val label: String,
+        val tag: String,
+        var value: Int,
+    ) : Command {
+        override fun execute(bag: TokenBag) {}
+        override fun undo(bag: TokenBag) {}
+        override fun mergeWith(next: Command): Command? =
+            if (next is Mergeable && next.tag == tag) Mergeable(label, tag, next.value) else null
+    }
+
+    @Test
+    fun `consecutive mergeable commands within window collapse into one entry`() {
+        val bag = TokenBag()
+        var t = 0L
+        val history = CommandHistory(mergeWindowMs = 500L, clock = { t })
+        history.execute(bag, Mergeable("set", "opacity", 50))
+        t = 100L
+        history.execute(bag, Mergeable("set", "opacity", 60))
+        t = 200L
+        history.execute(bag, Mergeable("set", "opacity", 70))
+        history.undo(bag)
+        assertFalse(history.canUndo())
+    }
+
+    @Test
+    fun `commands outside merge window do not collapse`() {
+        val bag = TokenBag()
+        var t = 0L
+        val history = CommandHistory(mergeWindowMs = 500L, clock = { t })
+        history.execute(bag, Mergeable("set", "opacity", 50))
+        t = 1_000L
+        history.execute(bag, Mergeable("set", "opacity", 60))
+        history.undo(bag)
+        assertTrue(history.canUndo())
+    }
+
+    @Test
+    fun `non-mergeable next does not collapse`() {
+        val bag = TokenBag()
+        val history = CommandHistory()
+        history.execute(bag, Mergeable("set", "opacity", 50))
+        history.execute(bag, TrackingCommand("other", { }, { }))
+        history.undo(bag)
+        assertTrue(history.canUndo())
+    }
 }
