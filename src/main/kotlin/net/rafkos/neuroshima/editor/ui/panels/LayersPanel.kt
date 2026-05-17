@@ -47,10 +47,7 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
         if (token != null) {
             val layersTopFirst = token.layers.asReversed()
             for (layer in layersTopFirst) {
-                val img = ctx.thumbnails.tokenThumbnail(
-                    Token(token.id, token.kind).apply { addLayer(layer) },
-                    size,
-                )
+                val img = ctx.thumbnails.layerThumbnail(token, layer, size)
                 val row = JPanel(BorderLayout())
                 val selected = layer.id in ctx.viewState.selectedLayers
                 row.border = BorderFactory.createLineBorder(
