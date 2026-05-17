@@ -46,8 +46,9 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
     init {
         layout = BorderLayout()
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.assets"))
-        val split = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, JScrollPane(tree), JScrollPane(previewGrid))
-        split.resizeWeight = 0.3
+        val treeScroll = JScrollPane(tree).apply { preferredSize = Dimension(200, 0) }
+        val split = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, treeScroll, JScrollPane(previewGrid))
+        split.resizeWeight = 0.25
         add(split, BorderLayout.CENTER)
 
         val south = JPanel(BorderLayout())
@@ -136,7 +137,9 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
             val drawY = (size - drawH) / 2
             val thumb = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB).also { t ->
                 val g = t.createGraphics()
-                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
                 g.color = java.awt.Color.WHITE
                 g.fillRect(0, 0, size, size)
                 g.drawImage(source, 0, drawY, drawW, drawY + drawH, 0, 0, source.width, source.height, null)

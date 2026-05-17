@@ -90,7 +90,10 @@ class MainFrame(val ctx: AppContext) : JFrame() {
         val esc = KeyStroke.getKeyStroke("ESCAPE")
         canvasPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(esc, "clearSelection")
         canvasPanel.actionMap.put("clearSelection", object : AbstractAction() {
-            override fun actionPerformed(e: ActionEvent) { ctx.viewState.clearSelection() }
+            override fun actionPerformed(e: ActionEvent) {
+                ctx.viewState.clearSelection()
+                ctx.viewState.setActiveTool(ToolId.SELECT)
+            }
         })
 
         ToolController(ctx, canvasComponent)

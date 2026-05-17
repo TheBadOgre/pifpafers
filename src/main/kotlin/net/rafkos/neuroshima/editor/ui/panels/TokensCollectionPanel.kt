@@ -38,6 +38,7 @@ class TokensCollectionPanel(
     private val slider = JSlider(48, 192, ctx.viewState.collectionThumbSize)
     private var currentSnapshotKey: PreviewKey.TokenSnapshot? = null
     private var currentSnapshotLabel: JLabel? = null
+    private var savedActiveIcon: javax.swing.Icon? = null
     private val deleteBtn: JButton
     private val duplicateBtn: JButton
 
@@ -88,7 +89,9 @@ class TokensCollectionPanel(
         }
         add(south, BorderLayout.SOUTH)
 
-        slider.addChangeListener { ctx.viewState.setCollectionThumbSize(slider.value) }
+        slider.addChangeListener {
+            ctx.viewState.setCollectionThumbSize(slider.value)
+        }
 
         ctx.bag.addListener { rebuild() }
         ctx.viewState.addListener { rebuild() }
@@ -106,27 +109,36 @@ class TokensCollectionPanel(
         }
 
     private fun rebuild() {
+        val isAdjusting = slider.valueIsAdjusting
+        if (isAdjusting) savedActiveIcon = currentSnapshotLabel?.icon
         grid.removeAll()
         currentSnapshotLabel = null
         val size     = ctx.viewState.collectionThumbSize
         val activeId = ctx.viewState.activeTokenId
+        var activeDisplaySize = size
         for (token in ctx.bag.tokens) {
             val displaySize = if (token.kind == TokenKind.MODIFIER) (size * 0.55).toInt().coerceAtLeast(24) else size
-            val img  = thumbnails.tokenThumbnail(token, displaySize)
+            val isActive = token.id == activeId
+            if (isActive) activeDisplaySize = displaySize
+            val icon: javax.swing.Icon = if (isActive && isAdjusting && savedActiveIcon != null) {
+                savedActiveIcon!!
+            } else {
+                ImageIcon(thumbnails.tokenThumbnail(token, displaySize))
+            }
             val cell = JPanel(BorderLayout()).apply {
                 preferredSize = Dimension(size + 8, size + 8)
                 val innerBorder = BorderFactory.createRaisedBevelBorder()
                 val outerBorder = BorderFactory.createLineBorder(
-                    if (token.id == activeId) Color.BLUE else Color.GRAY,
-                    if (token.id == activeId) 2 else 1,
+                    if (isActive) Color.BLUE else Color.GRAY,
+                    if (isActive) 2 else 1,
                 )
                 border = BorderFactory.createCompoundBorder(
                     BorderFactory.createEmptyBorder(1, 1, 1, 1),
                     BorderFactory.createCompoundBorder(outerBorder, innerBorder),
                 )
             }
-            val lbl = JLabel(ImageIcon(img), JLabel.CENTER)
-            if (token.id == activeId) currentSnapshotLabel = lbl
+            val lbl = JLabel(icon, JLabel.CENTER)
+            if (isActive) currentSnapshotLabel = lbl
             lbl.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
             lbl.addMouseListener(object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
@@ -159,7 +171,7 @@ class TokensCollectionPanel(
         deleteBtn.isEnabled = hasActive
         duplicateBtn.isEnabled = hasActive
 
-        updateSnapshotSubscription(activeId, size)
+        if (!isAdjusting) updateSnapshotSubscription(activeId, activeDisplaySize)
     }
 
     private fun updateSnapshotSubscription(activeId: UUID?, sizePx: Int) {
