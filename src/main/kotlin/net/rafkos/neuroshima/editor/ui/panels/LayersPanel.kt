@@ -41,10 +41,14 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
             super.paintChildren(g)
             val dy = dragY
             if (dy < 0 || dragLayerId == null) return
-            val g2 = g as Graphics2D
-            g2.color = java.awt.Color(0x2196F3)
-            g2.stroke = java.awt.BasicStroke(2f)
-            g2.drawLine(4, dy, width - 4, dy)
+            val g2 = g.create() as Graphics2D
+            try {
+                g2.color = Color(0x2196F3)
+                g2.stroke = BasicStroke(2f)
+                g2.drawLine(4, dy, width - 4, dy)
+            } finally {
+                g2.dispose()
+            }
         }
     }
     private val slider = JSlider(48, 192, ctx.viewState.layersThumbSize)
@@ -172,12 +176,10 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
     private fun commitDrop(dropY: Int) {
         val activeId = ctx.viewState.activeTokenId ?: return
         val token = ctx.bag.findToken(activeId) ?: return
-        val selected = ctx.viewState.selectedLayers
-        if (selected.isEmpty()) return
+        val layerId = dragLayerId ?: return
 
         val rowH = if (list.componentCount > 1) {
-            val firstRow = list.getComponent(0)
-            firstRow.height.takeIf { it > 0 } ?: (ctx.viewState.layersThumbSize + 8)
+            list.getComponent(0).height.takeIf { it > 0 } ?: (ctx.viewState.layersThumbSize + 8)
         } else {
             ctx.viewState.layersThumbSize + 8
         }
@@ -185,12 +187,9 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
         val visualDropIndex = (dropY / rowH).coerceIn(0, reversedLayerCount)
         val targetLayersIndex = (reversedLayerCount - visualDropIndex).coerceIn(0, reversedLayerCount)
 
-        val selectedSorted = token.layers.filter { it.id in selected }
-        for (layer in selectedSorted) {
-            val currentIdx = token.layers.indexOfFirst { it.id == layer.id }
-            if (currentIdx != targetLayersIndex) {
-                ctx.history.execute(ctx.bag, ReorderLayerCommand(activeId, layer.id, targetLayersIndex))
-            }
+        val currentIdx = token.layers.indexOfFirst { it.id == layerId }
+        if (currentIdx >= 0 && currentIdx != targetLayersIndex) {
+            ctx.history.execute(ctx.bag, ReorderLayerCommand(activeId, layerId, targetLayersIndex))
         }
     }
 }

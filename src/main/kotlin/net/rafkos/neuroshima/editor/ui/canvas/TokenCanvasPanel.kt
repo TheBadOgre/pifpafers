@@ -126,6 +126,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
     }
 
     private fun paintCanvas(g2: Graphics2D) {
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
         val zoom = ctx.viewState.zoom
         g2.translate(width / 2.0 + panX, height / 2.0 + panY)
         g2.scale(zoom.toDouble(), zoom.toDouble())

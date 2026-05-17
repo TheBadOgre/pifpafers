@@ -64,6 +64,7 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
             content.add(JLabel(ctx.locale.t(msgKey)))
             content.add(JLabel(""))
             content.revalidate(); content.repaint()
+            resetButton.isEnabled = false
             return
         }
         val (tokenId, layer) = pair
@@ -115,6 +116,7 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
             content.add(spinner)
         }
         content.revalidate(); content.repaint()
+        resetButton.isEnabled = true
     }
 
     private fun propValue(layer: Layer, prop: LayerProperty): Double = when (prop) {
