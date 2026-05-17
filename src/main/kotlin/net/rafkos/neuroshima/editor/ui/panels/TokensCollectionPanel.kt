@@ -43,22 +43,22 @@ class TokensCollectionPanel(
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.tokens"))
         add(JScrollPane(grid), BorderLayout.CENTER)
 
-        val south = JPanel(BorderLayout())
-        slider.preferredSize = Dimension(120, slider.preferredSize.height)
-        south.add(JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }, BorderLayout.NORTH)
-
-        val buttons = JPanel(FlowLayout(FlowLayout.LEFT, 4, 4))
-        buttons.add(iconBtn(Icons.tokenAddUnit, ctx.locale.t("button.add.unit")) {
-            val cmd = AddTokenCommand(TokenKind.UNIT, ctx.bag.tokens.size)
-            ctx.history.execute(ctx.bag, cmd)
-            cmd.createdId?.let { ctx.viewState.setActiveToken(it) }
-        })
-        buttons.add(iconBtn(Icons.tokenAddMod, ctx.locale.t("button.add.modifier")) {
-            val cmd = AddTokenCommand(TokenKind.MODIFIER, ctx.bag.tokens.size)
-            ctx.history.execute(ctx.bag, cmd)
-            cmd.createdId?.let { ctx.viewState.setActiveToken(it) }
-        })
-        south.add(buttons, BorderLayout.SOUTH)
+        val south = JPanel(BorderLayout()).apply {
+            val buttons = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2))
+            buttons.add(iconBtn(Icons.tokenAddUnit, ctx.locale.t("button.add.unit")) {
+                val cmd = AddTokenCommand(TokenKind.UNIT, ctx.bag.tokens.size)
+                ctx.history.execute(ctx.bag, cmd)
+                cmd.createdId?.let { ctx.viewState.setActiveToken(it) }
+            })
+            buttons.add(iconBtn(Icons.tokenAddMod, ctx.locale.t("button.add.modifier")) {
+                val cmd = AddTokenCommand(TokenKind.MODIFIER, ctx.bag.tokens.size)
+                ctx.history.execute(ctx.bag, cmd)
+                cmd.createdId?.let { ctx.viewState.setActiveToken(it) }
+            })
+            add(buttons, BorderLayout.WEST)
+            slider.preferredSize = Dimension(120, slider.preferredSize.height)
+            add(JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }, BorderLayout.EAST)
+        }
         add(south, BorderLayout.SOUTH)
 
         slider.addChangeListener { ctx.viewState.setCollectionThumbSize(slider.value) }
@@ -84,7 +84,8 @@ class TokensCollectionPanel(
         val size     = ctx.viewState.collectionThumbSize
         val activeId = ctx.viewState.activeTokenId
         for (token in ctx.bag.tokens) {
-            val img  = thumbnails.tokenThumbnail(token, size)
+            val displaySize = if (token.kind == TokenKind.MODIFIER) (size * 0.55).toInt().coerceAtLeast(24) else size
+            val img  = thumbnails.tokenThumbnail(token, displaySize)
             val cell = JPanel(BorderLayout()).apply {
                 preferredSize = Dimension(size + 8, size + 8)
                 val innerBorder = BorderFactory.createRaisedBevelBorder()
@@ -97,7 +98,7 @@ class TokensCollectionPanel(
                     BorderFactory.createCompoundBorder(outerBorder, innerBorder),
                 )
             }
-            val lbl = JLabel(ImageIcon(img))
+            val lbl = JLabel(ImageIcon(img), JLabel.CENTER)
             if (token.id == activeId) currentSnapshotLabel = lbl
             lbl.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
             lbl.addMouseListener(object : MouseAdapter() {
