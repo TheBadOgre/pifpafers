@@ -133,6 +133,8 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
             val thumb = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB).also { t ->
                 val g = t.createGraphics()
                 g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+                g.color = java.awt.Color.WHITE
+                g.fillRect(0, 0, size, size)
                 g.drawImage(source, 0, 0, size, size, null)
                 g.dispose()
             }
