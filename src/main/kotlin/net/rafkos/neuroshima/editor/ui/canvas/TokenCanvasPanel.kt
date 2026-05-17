@@ -120,8 +120,15 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
 
     override fun paintComponent(graphics: Graphics) {
         super.paintComponent(graphics)
-        val g2 = graphics as Graphics2D
-        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+        val g2 = (graphics.create() as Graphics2D)
+        try {
+            paintCanvas(g2)
+        } finally {
+            g2.dispose()
+        }
+    }
+
+    private fun paintCanvas(g2: Graphics2D) {
         val zoom = ctx.viewState.zoom
         g2.translate(width / 2.0 + panX, height / 2.0 + panY)
         g2.scale(zoom.toDouble(), zoom.toDouble())
