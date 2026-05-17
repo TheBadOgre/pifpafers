@@ -87,9 +87,14 @@ class TokensCollectionPanel(
             val img  = thumbnails.tokenThumbnail(token, size)
             val cell = JPanel(BorderLayout()).apply {
                 preferredSize = Dimension(size + 8, size + 8)
-                border = BorderFactory.createLineBorder(
+                val innerBorder = BorderFactory.createRaisedBevelBorder()
+                val outerBorder = BorderFactory.createLineBorder(
                     if (token.id == activeId) Color.BLUE else Color.GRAY,
                     if (token.id == activeId) 2 else 1,
+                )
+                border = BorderFactory.createCompoundBorder(
+                    BorderFactory.createEmptyBorder(1, 1, 1, 1),
+                    BorderFactory.createCompoundBorder(outerBorder, innerBorder),
                 )
             }
             val lbl = JLabel(ImageIcon(img))

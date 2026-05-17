@@ -67,9 +67,14 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                 val row      = JPanel(BorderLayout())
                 row.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
                 val selected = layer.id in ctx.viewState.selectedLayers
-                row.border = BorderFactory.createLineBorder(
+                val innerBorder = BorderFactory.createRaisedBevelBorder()
+                val outerBorder = BorderFactory.createLineBorder(
                     if (selected) Color.BLUE else Color.GRAY,
                     if (selected) 2 else 1,
+                )
+                row.border = BorderFactory.createCompoundBorder(
+                    BorderFactory.createEmptyBorder(1, 1, 1, 1),
+                    BorderFactory.createCompoundBorder(outerBorder, innerBorder),
                 )
                 row.maximumSize = Dimension(Int.MAX_VALUE, size + 8)
                 row.add(JLabel(ImageIcon(img)), BorderLayout.WEST)
