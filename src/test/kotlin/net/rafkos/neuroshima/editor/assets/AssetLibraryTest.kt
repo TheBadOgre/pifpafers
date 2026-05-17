@@ -80,4 +80,23 @@ class AssetLibraryTest {
         val units = root.childFolders.first { it.name == "units" }
         assertEquals(setOf("red.png", "blue.png"), units.assets.map { it.relativePath.substringAfterLast('/') }.toSet())
     }
+
+    @Test
+    fun `refreshUser picks up new user files but does not rescan bundled`(@TempDir tmp: Path) {
+        val bundled = tmp.resolve("bundled")
+        val user = tmp.resolve("user")
+        touch(bundled.resolve("b.png"))
+        val lib = AssetLibrary(bundled, user)
+        lib.scan()
+        assertEquals(listOf("bundled://b.png"), lib.allAssets().map { it.uri })
+
+        // Add to bundled AFTER initial scan - should NOT appear after refreshUser
+        touch(bundled.resolve("late_bundled.png"))
+        // Add to user - SHOULD appear after refreshUser
+        touch(user.resolve("u.png"))
+
+        lib.refreshUser()
+        val after = lib.allAssets().map { it.uri }.toSet()
+        assertEquals(setOf("bundled://b.png", "user://u.png"), after)
+    }
 }
