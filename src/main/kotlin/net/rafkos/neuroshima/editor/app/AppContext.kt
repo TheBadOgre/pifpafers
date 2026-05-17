@@ -30,6 +30,8 @@ class AppContext(
     val tokenRenderer: TokenRenderer = TokenRenderer(imageCache, processedCache)
     val thumbnails: ThumbnailRenderer = ThumbnailRenderer(tokenRenderer)
 
+    var canvasMapper: net.rafkos.neuroshima.editor.ui.canvas.CanvasMapper? = null
+
     var bag: TokenBag = TokenBag()
         private set
     var dirty: Boolean = false
