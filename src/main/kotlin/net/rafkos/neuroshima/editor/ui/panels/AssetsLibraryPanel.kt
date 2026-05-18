@@ -4,6 +4,7 @@ import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.assets.AssetTreeNode
 import net.rafkos.neuroshima.editor.command.AddLayerCommand
 import net.rafkos.neuroshima.editor.model.AssetPath
+import net.rafkos.neuroshima.editor.ui.ToolId
 import net.rafkos.neuroshima.editor.ui.WrapLayout
 import net.rafkos.neuroshima.editor.ui.icon.Icons
 import java.awt.BorderLayout
@@ -25,6 +26,7 @@ import javax.swing.JScrollPane
 import javax.swing.JSlider
 import javax.swing.JSplitPane
 import javax.swing.JTree
+import javax.swing.SwingUtilities
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 import javax.swing.tree.DefaultMutableTreeNode
@@ -46,8 +48,13 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
     init {
         layout = BorderLayout()
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.assets"))
-        val treeScroll = JScrollPane(tree).apply { preferredSize = Dimension(200, 0) }
-        val split = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, treeScroll, JScrollPane(previewGrid))
+        val treeScroll = JScrollPane(tree)
+        val split = object : JSplitPane(HORIZONTAL_SPLIT, treeScroll, JScrollPane(previewGrid)) {
+            override fun addNotify() {
+                super.addNotify()
+                SwingUtilities.invokeLater { setDividerLocation(0.25) }
+            }
+        }
         split.resizeWeight = 0.25
         add(split, BorderLayout.CENTER)
 
@@ -168,6 +175,9 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
         }
         val cmd = AddLayerCommand(tokenId, asset)
         ctx.history.execute(ctx.bag, cmd)
-        cmd.layerId?.let { ctx.viewState.replaceSelection(listOf(it)) }
+        cmd.layerId?.let {
+            ctx.viewState.replaceSelection(listOf(it))
+            ctx.viewState.setActiveTool(ToolId.MOVE)
+        }
     }
 }

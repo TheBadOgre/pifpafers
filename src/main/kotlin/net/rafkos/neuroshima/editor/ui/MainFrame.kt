@@ -104,7 +104,7 @@ class MainFrame(val ctx: AppContext) : JFrame() {
         addWindowListener(object : WindowAdapter() {
             override fun windowClosing(e: WindowEvent) {
                 if (!ctx.dirty) { ctx.savePrefs(); ctx.shutdown(); dispose(); System.exit(0); return }
-                when (SaveBeforeCloseDialog.ask(this@MainFrame)) {
+                when (SaveBeforeCloseDialog.ask(this@MainFrame, ctx.locale)) {
                     SaveBeforeCloseDialog.Result.SAVE -> {
                         if (menuBuilder.save()) { ctx.savePrefs(); ctx.shutdown(); dispose(); System.exit(0) }
                     }

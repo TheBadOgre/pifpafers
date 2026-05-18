@@ -1,0 +1,224 @@
+# Neuroshima Hex Army Editor — Agent Guide
+
+Compact, self-contained orientation. There is **no `docs/` directory** — this file plus the code is the source of truth. **Update this file whenever an architectural rule, key invariant, package, command, model field, or significant component changes.**
+
+## Purpose
+
+Desktop Swing tool for composing **Neuroshima Hex** custom tokens by stacking pre-existing PNG image assets. One `.box` file holds one army = unit tokens (hexagonal shape) + modifier tokens (round shape). Print/PDF export is **out of scope**.
+
+No drawing, no text rendering, no game-rules validation. Just layered image composition with per-layer transform (offset/rotation/scale) and per-layer color (opacity/hue/saturation/brightness/colorize).
+
+## Tech Stack
+
+- **Kotlin 2.3.10 / JVM 21**, single Gradle module, `application` plugin.
+- Swing/AWT UI (`Graphics2D`, `BufferedImage`, `AffineTransform`, `RescaleOp`).
+- `kotlinx.serialization` (JSON persistence), `kotlinx.coroutines`, `log4j2`.
+- Test: `junit-jupiter`, `kotlin-test-junit5`, `mockito-core`, `mockito-kotlin`.
+- Packaging: `jpackage` (Win zip, Linux deb/rpm, macOS dmg).
+- Entry point: `net.rafkos.neuroshima.editor.app.MainKt`.
+
+## Architecture (MVC + Command)
+
+**Hard rule: UI components only display state. All mutations go through `Command` objects executed via `CommandHistory`. Never mutate the model from a UI event handler.**
+
+```
+ui/ ──► command/ ──► model/        (events bubble back through observers)
+ui/ ──► render/  ──► assets/
+ui/ ──► persistence/, prefs/, i18n/
+```
+
+### Package boundaries (enforced by `architecture/PackageBoundaryTest`)
+
+`BASE = net.rafkos.neuroshima.editor`
+
+| Rule | Package | Forbidden imports | Allowed exception |
+|---|---|---|---|
+| R1 | `model` | `javax.swing`, `java.awt` | `java.awt.geom` |
+| R2 | `command` | `javax.swing`, `java.awt`, `ui` | — |
+| R3 | `persistence` | `javax.swing`, `java.awt`, `ui`, `command` | — |
+| R4 | `assets` | `javax.swing`, `ui`, `command` | `java.awt.image` |
+| R5 | `render` | `javax.swing`, `ui`, `command` | `java.awt` |
+| R6 | `i18n` | `javax.swing`, `java.awt`, `ui`, `model`, `command` | — |
+| R7 | `prefs` | `javax.swing`, `java.awt`, `ui`, `model` | — |
+| R8 | `ui.tools` | `persistence` | — |
+
+`util/`, `app/`, `render/overlay`, and `ui` subpackages other than `tools` are unconstrained. **Crossing boundaries → update both `PackageBoundaryTest` rules and this table.**
+
+### Package map
+
+```
+app/         Main, AppContext (DI/wiring + bag/history/imageCache/processedCache/previewService/canvasMapper), AppDirs
+model/       Token, Layer, LayerProperties, TokenBag, AssetPath (sealed: Bundled|User), ModelEvent
+persistence/ JsonBagStore (.box save/load, atomic write), BagOpener, BagDto, MissingAssetsException
+assets/      AssetLibrary (bundled+user merged tree), ImageCache (LinkedHashMap LRU + SoftReference, bound 256),
+             ImagePreloader, AssetTreeNode
+command/     Command interface, CommandHistory, concrete commands (see list below)
+render/      LayerRenderer (RescaleOp + per-pixel HSB), AffineBuilder, TokenRenderer (fit-scale canvas → sizePx),
+             ThumbnailRenderer (TokenKey | LayerKey cache), ProcessedLayerCache (bound 256),
+             render/overlay/  OverlayPainter etc.
+ui/          MainFrame, MenuBuilder, StatusBar (dirty marker `*` lives here, not in title), ViewState, WrapLayout
+ui/canvas/   TokenCanvasPanel (paint pipeline + composite cache), CanvasMapper (screen↔logical)
+ui/panels/   TokensCollectionPanel, LayersPanel, LayerPropertiesPanel, AssetsLibraryPanel, ToolPalettePanel
+ui/preview/  PreviewService (debounced 300 ms HQ snapshot for selected token)
+ui/tools/    Tool interface, ToolController, Select/Move/Rotate/Scale/Opacity/Colorize tools
+ui/dialogs/  MissingAssetsDialog, SaveBeforeCloseDialog
+ui/icon/     Icons
+i18n/        LocaleService (ResourceBundle, English default + Polish, OS-picked)
+prefs/       UserPreferences, PrefsStore
+util/        Logging, geometry helpers
+```
+
+## Domain Model
+
+```
+TokenBag(name: String, schemaVersion: Int, tokens: MutableList<Token>)
+  Token(id: UUID, kind: TokenKind { UNIT, MODIFIER }, layers: MutableList<Layer>)
+    Layer(id: UUID, assetPath: AssetPath, props: LayerProperties)
+      LayerProperties(
+        offsetX: Int, offsetY: Int,        // px, relative to token center
+        rotation: Float,                    // degrees 0..360
+        scale: Float,                       // 1.0 = native
+        opacity: Float,                     // 0..1
+        hue: Float,                         // 0..1 shift
+        saturation: Float,                  // 0..1 (1 = unchanged)
+        brightness: Float,                  // 0..1 (1 = unchanged)
+        colorize: Boolean = false           // when true, hue/sat applied as tint not shift
+      )
+```
+
+- All ids are UUIDs and **persisted** for stable command targets.
+- Mutators emit `ModelEvent` (`NameChanged`, `TokenAdded`, `TokenRemoved`, `TokensReordered`, `LayerAdded`, `LayerRemoved`, `LayerReordered`, `LayerPropsChanged`) through a lightweight observer; renderers/thumbnails/preview/canvas listen.
+- `AssetPath` is sealed (`AssetPath.Bundled` / `AssetPath.User`) — the two roots never conflate.
+
+## Persistence (`.box` JSON)
+
+- Pretty-printed JSON via `kotlinx.serialization`, diff-friendly under git.
+- `CURRENT_SCHEMA_VERSION = 1` (`JsonBagStore`). Loader rejects unknown versions.
+- Asset URI scheme: `bundled://<rel>` or `user://<rel>`.
+- File extension: `.box`.
+- **Atomic save**: write `.tmp` then `Files.move(..., ATOMIC_MOVE)`.
+- **Hard-fail on load** if any referenced asset is missing: `BagOpener` collects every missing path, shows `MissingAssetsDialog`, aborts. No partial load.
+- On successful load: eager preload of every referenced image into `ImageCache` off-EDT.
+- **Save and Load both clear `CommandHistory`** (wired in `MenuBuilder` save/saveAs and `AppContext.openBag`).
+- Example shape:
+  ```json
+  { "schemaVersion": 1, "name": "My Army",
+    "tokens": [{ "id": "...", "kind": "UNIT",
+      "layers": [{ "id": "...", "asset": "bundled://units/grunt.png",
+        "props": { "offsetX": 0, "offsetY": 0, "rotation": 0.0, "scale": 1.0,
+                   "opacity": 1.0, "hue": 0.0, "saturation": 1.0, "brightness": 1.0,
+                   "colorize": false } }] }] }
+  ```
+
+## Assets
+
+Two roots merged into one virtual tree:
+- `bundled://` → `<app>/assets/` (read-only, ships with app). Scanned once at startup.
+- `user://` → `<user_home>/.neuroshima-editor/content/` (writable, created on first launch). **Refresh content** button rescans.
+- **Conflict rule**: bundled wins; user copy hidden + warning logged. Same relative path = same image across machines.
+- **PNG only** (alpha required). Other files ignored + logged.
+- Double-click or drag → adds new `Layer` on top of active token, centered, default props. Drop position ignored.
+- No file-system watcher; refresh is explicit.
+
+## Commands / History
+
+`Command` interface: `label`, `execute(model)`, `undo(model)`, `mergeWith(next): Command?`.
+
+`CommandHistory` has `done` / `undone` ArrayDeque stacks. Executing a new command clears `undone`.
+
+- **Merge window 500 ms** (`CommandHistory` constructor default). Consecutive same-`prop` edits on the same `layerId` collapse via `mergeWith` → prevents slider-drag history spam. Drag-end finalizes by issuing a no-merge boundary command.
+- Save/Load clear history.
+- Undo targeting a non-active token auto-selects that token first.
+- Bindings: `Ctrl+Z` undo, `Ctrl+Y` redo. Menu items disabled when the stack is empty.
+
+Concrete commands on disk:
+`AddTokenCommand`, `RemoveTokenCommand`, `DuplicateTokenCommand`, `AddLayerCommand`, `RemoveLayerCommand`, `DuplicateLayerCommand`, `ReorderLayerCommand`, `SetLayerPropertyCommand` (one per `LayerProperty` enum value), `MultiLayerPropertyCommand` (tool drags affecting multi-selected layers), `ColorizeCommand`.
+
+## Rendering
+
+**Logical canvas dimensions** (`TokenRenderer.LOGICAL_CANVAS_W = 1044`, `LOGICAL_CANVAS_H = 902`; center `522.0, 451.0` in `CanvasMapper`). These are the print-area logical pixels; the visible token shape (hex / circle) sits centered within and the bleed/overlay extend to the full rectangle.
+
+- Zoom 0.25×–8× (wheel zoom-to-cursor, step ≈ 1.1×). Middle-mouse pan. Zoom/pan are **view state** — not modeled, not undoable, not saved.
+- **`TokenCanvasPanel.paintComponent` MUST use `graphics.create()` + `try/finally g2.dispose()`** — otherwise transforms/clips leak across sibling Swing panels. Regression-prone.
+- `TokenCanvasPanel` keeps a `LOGICAL_CANVAS_W × LOGICAL_CANVAS_H` **composite cache** per active token, invalidated only by `ModelEvent`s touching the active token (`LayerAdded`/`Removed`/`Reordered`/`PropsChanged`). Zoom, pan, selection change, overlay toggle do **not** invalidate — they only `repaint()`.
+- `LayerRenderer.applyPixelOps`: identity short-circuit; `RescaleOp` for opacity/brightness; **per-pixel HSB loop** (`Color.RGBtoHSB`/`HSBtoRGB`) for saturation, hue, and `colorize` mode. (Spec-level intent was to vectorize via `LookupOp`/`BandCombineOp` — not yet implemented; saturation in particular doesn't map cleanly to `BandCombineOp` for ARGB sources.)
+- `ProcessedLayerCache` keyed by `(assetPath, props.hash())`, bound 256.
+- `TokenRenderer.render(token, sizePx)` fit-scales `LOGICAL_CANVAS_W × LOGICAL_CANVAS_H` → `sizePx × sizePx` via uniform `g.scale(fit)` so thumbnails show the whole composition correctly regardless of layer offsets.
+- `ThumbnailRenderer` has separate `TokenKey(tokenId, sizePx)` and `LayerKey(tokenId, layerId, sizePx)` cache entries (sealed `Key`); `layerThumbnail` builds a transient one-layer `Token` internally — its synthetic id is never used as a cache key. `invalidateToken` drops both.
+- `PreviewService` (singleton `ScheduledExecutorService`, 300 ms debounce, per-key `AtomicLong` version counter — stale results discarded) renders an HQ snapshot only for the **selected** token tile; `SwingUtilities.invokeLater` swaps the `ImageIcon` on EDT.
+- All image decoding off-EDT. `ImageCache` = `LinkedHashMap<AssetPath, SoftReference<BufferedImage>>`, LRU bound 256.
+- **Selection feedback**: blue-hue tint overlay (`tintBlue` → pure `0x0055ff`, alpha-preserving) composited at `AlphaComposite.SRC_OVER, 0.45f` over selected layers. Not a dashed marker (legacy design — replaced).
+
+## UI Layout
+
+Five regions:
+- **Top bar**: rename token field (commits on Enter / focus-lost → rename command, undoable) · Save (`Ctrl+S`) · Save As · Print (stub).
+- **Left strip**: 6 mutually-exclusive tool radio buttons — select, move, rotate, scale, opacity, colorize. Active tool installs canvas mouse handler + cursor.
+- **Left panel — Tokens collection**: scrollable grid; thumbnail shape mirrors `kind` (hex / circle). `+ Unit` / `+ Modifier` buttons + size slider on the same row at the bottom. Modifier preview renders at 55% size (centered) so circle vs hex is visually distinct.
+- **Center — Canvas**: token shape outline, optional `☑ show overlay` toggle (draws `HEX_template_lines.png` over the token; view state, not undoable). When no token is selected, only the dark-grey background paints.
+- **Right top — Current token layers**: vertical list, **top of list = topmost in z-order**. Each row: layer thumbnail + up/down/duplicate/remove buttons. Multi-select (Ctrl+click / Esc to clear). Raised bevel border + 1 px margin per row.
+- **Right bottom — Layer properties**: visible **only when exactly one layer is selected**. Eight fields + `colorize` toggle. Each edit fires `SetLayerPropertyCommand` (merge-window collapsed). **Reset to defaults** button at the bottom. When >1 layer is selected, shows `label.multi.layer` message instead of fields.
+- **Bottom — Assets library**: folder tree (merged bundled+user) · grid of asset previews (white background fill so transparent PNGs are visible) · **Refresh content** button (rescans `user://` only) · size slider. Hand cursor on hover.
+- **Status bar**: `loaded file: <name>` · `tokens: N (U units, M modifiers)` · lafix st-saved timestamp · **dirty marker `*`** (the asterisk lives here, not in the window title).
+
+Three independent thumbnail size sliders (tokens / layers / assets), range **48–192 px** each. View state, not undoable, persisted in `UserPreferences` via `PrefsStore`.
+
+### Confirmed UI invariants
+
+- **Token removal**: confirmation dialog mandatory (`JOptionPane.showOptionDialog` in `TokensCollectionPanel`). Undoable.
+- **Layer removal**: confirmation dialog also present (`LayersPanel`). Undoable via `RemoveLayerCommand`. *(Note: original design called for no-confirm on layers since undo covers it — code currently confirms. If you change this, update here.)*
+- **Rename** = command (undoable), not a direct mutation.
+- **Save-before-close** dialog (`SaveBeforeCloseDialog`) on window-close and on opening another bag when current is dirty.
+
+## i18n
+
+- `LocaleService` loads `i18n/messages.properties` (English default) + `messages_pl.properties`. OS-locale picked at startup; falls back to English.
+- **Rule: no user-visible string literals in UI code** — always `ctx.locale.t("key")`. When adding a UI string, add the key to **both** `.properties` files.
+- File paths / asset names are not translated.
+- `ui/dialogs/*` dialogs must take either a `LocaleService` or pre-resolved strings — never embed literals.
+
+## Testing — **High Importance**
+
+`./gradlew test` must stay green on every PR.
+
+- **`PackageBoundaryTest`** (architecture test, `@TestFactory` over `src/main/kotlin`): scans every `.kt`, parses `package` + `import` lines, fails on forbidden cross-package imports. **Any new package or boundary-rule change must update this test alongside the table above.**
+- **Unit tests** colocated by package under `src/test/kotlin/...`:
+  - `model/` — mutation events, UUID stability, `AssetPath` sealed-type round-trip.
+  - `persistence/` — `JsonBagStore` round-trip, unknown-`schemaVersion` rejection, `BagOpener` missing-asset enumeration.
+  - `command/` — every command's do/undo invariants, `CommandHistory` merge window, save/load history-clear.
+  - `assets/` — `AssetLibrary` bundled-wins conflict rule, `ImageCache` LRU eviction + soft-reference behaviour, `ImagePreloader`.
+  - `render/` — `LayerRenderer` correctness vs a legacy reference (`LayerRendererLegacy`) with ≤2/255 per-channel delta on a fixture, `AffineBuilder`, `ThumbnailRenderer` cache-key isolation, `TokenRenderer` fit-scale, `ProcessedLayerCache`.
+  - `ui/` — `ViewState`, `CanvasMapper` round-trip `screenToLogical(logicalToScreen(p)) == p`, `SelectTool` alpha-aware hit test (threshold = 8/255), `PreviewService` debounce + version-counter staleness drop.
+  - `i18n/`, `prefs/` — service round-trip, key resolution.
+- **Integration**: `integration/RoundTripRenderTest` renders a sample bag and compares against a committed reference PNG (small per-pixel delta tolerance). **Regenerate the reference PNG when intentional render changes land.**
+- **No Swing widget interaction tests** — covered by manual smoke checks.
+
+When adding a feature: add tests in the matching package directory under `src/test/kotlin/...`.
+
+## Build / Run / Package
+
+```bash
+./gradlew build              # compile + test
+./gradlew test               # tests only
+./gradlew run                # dev run — copies local_resources/ → last_run_tmp/, uses that as workingDir
+./gradlew release_all        # clean + build + jpackage; only the matching-OS jpackage task actually runs
+```
+
+- Classpath resources (`src/main/resources/`): `i18n/messages*.properties`, `log4j2.xml`, `icons/`.
+- User-visible bundled files (`local_resources/`, committed): `assets/` (= `bundled://` root), `overlay/HEX_template_lines.png`, `icon.ico`.
+- `last_run_tmp/`, `build/`, `output/` are git-ignored.
+- jpackage stages: `stageJpackageInput` (runtime classpath + main jar) → `stageJpackageContent` (top-level items of `local_resources/` each passed as their own `--app-content`) → platform-specific `jpackage*` task → final artifact in `output/`.
+
+## Maintenance Rule for This File
+
+**Update this `CLAUDE.md` whenever you:**
+- Add/move/rename a package or significant component.
+- Change a `PackageBoundaryTest` rule.
+- Add/remove/rename a `Command`, model field, or `ModelEvent` kind.
+- Change a persistence invariant (schema version, atomic save, missing-asset hard-fail, history-clear timing).
+- Change a render constant (canvas dimensions, debounce window, cache bound, merge window) or pipeline shape.
+- Change a UI invariant (confirmation behaviour, dirty marker location, single-vs-multi-select rules).
+- Bump tech-stack versions or replace a major dependency.
+- Migrate a hardcoded UI string to i18n (remove it from the "known violations" list).
+
+Keep this file **compact** — surface architecture and rules, not implementation detail.

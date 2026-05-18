@@ -73,6 +73,12 @@ class AppContext(
 
     private fun installInvalidationListener(b: TokenBag) {
         b.addListener { event ->
+            if (event is ModelEvent.TokenRemoved) {
+                if (viewState.activeTokenId == event.tokenId) {
+                    viewState.setActiveToken(bag.tokens.firstOrNull()?.id)
+                }
+                return@addListener
+            }
             val touchedToken: java.util.UUID? = when (event) {
                 is ModelEvent.LayerAdded -> event.tokenId
                 is ModelEvent.LayerRemoved -> event.tokenId

@@ -1,21 +1,23 @@
 package net.rafkos.neuroshima.editor.ui.dialogs
 
+import net.rafkos.neuroshima.editor.i18n.LocaleService
 import java.awt.Component
 import javax.swing.JOptionPane
 
 object SaveBeforeCloseDialog {
     enum class Result { SAVE, DISCARD, CANCEL }
 
-    fun ask(parent: Component): Result {
+    fun ask(parent: Component, locale: LocaleService): Result {
+        val saveLabel = locale.t("dialog.unsaved.save")
         val choice = JOptionPane.showOptionDialog(
             parent,
-            "You have unsaved changes. Save before closing?",
-            "Unsaved changes",
+            locale.t("dialog.unsaved.message"),
+            locale.t("dialog.unsaved.title"),
             JOptionPane.YES_NO_CANCEL_OPTION,
             JOptionPane.WARNING_MESSAGE,
             null,
-            arrayOf("Save", "Discard", "Cancel"),
-            "Save",
+            arrayOf(saveLabel, locale.t("dialog.unsaved.discard"), locale.t("dialog.unsaved.cancel")),
+            saveLabel,
         )
         return when (choice) {
             0 -> Result.SAVE

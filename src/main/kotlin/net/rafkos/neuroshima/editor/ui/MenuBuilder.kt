@@ -39,7 +39,7 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
         m.addSeparator()
         m.add(JMenuItem(ctx.locale.t("menu.file.print")).apply {
             isEnabled = false
-            toolTipText = "Out of scope for first release"
+            toolTipText = ctx.locale.t("tooltip.print.stub")
         })
         return m
     }
@@ -88,12 +88,17 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
             ctx.replaceBag(loaded, path)
             frame.title = "${ctx.locale.t("app.title")} — ${path.fileName}"
         } catch (ex: MissingAssetsException) {
-            MissingAssetsDialog.show(frame, ctx.locale.t("error.missing.assets"), ex)
+            MissingAssetsDialog.show(
+                frame,
+                ctx.locale.t("dialog.missing.assets.title"),
+                ctx.locale.t("error.missing.assets"),
+                ex,
+            )
         } catch (ex: SchemaVersionException) {
             JOptionPane.showMessageDialog(
                 frame,
                 ctx.locale.t("error.schema.version", ex.found),
-                "Open failed",
+                ctx.locale.t("error.open.failed"),
                 JOptionPane.ERROR_MESSAGE,
             )
         }

@@ -15,7 +15,7 @@ class ViewState {
     var activeTool: ToolId = ToolId.SELECT
         private set
 
-    var zoom: Float = 1f
+    var zoom: Float = 0.5f
         private set
 
     var showOverlay: Boolean = true
