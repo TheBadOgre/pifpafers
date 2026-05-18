@@ -30,7 +30,7 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
         add(content, BorderLayout.NORTH)
         add(resetButton, BorderLayout.SOUTH)
         resetButton.addActionListener { resetToDefaults() }
-        ctx.bag.addListener { event ->
+        ctx.addBagListener { event ->
             when (event) {
                 is ModelEvent.LayerAdded,
                 is ModelEvent.LayerRemoved,

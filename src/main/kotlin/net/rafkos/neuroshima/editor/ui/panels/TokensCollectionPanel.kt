@@ -38,7 +38,6 @@ class TokensCollectionPanel(
     private val slider = JSlider(48, 192, ctx.viewState.collectionThumbSize)
     private var currentSnapshotKey: PreviewKey.TokenSnapshot? = null
     private var currentSnapshotLabel: JLabel? = null
-    private var savedActiveIcon: javax.swing.Icon? = null
     private val deleteBtn: JButton
     private val duplicateBtn: JButton
 
@@ -91,9 +90,16 @@ class TokensCollectionPanel(
 
         slider.addChangeListener {
             ctx.viewState.setCollectionThumbSize(slider.value)
+            if (!slider.valueIsAdjusting) {
+                val activeId = ctx.viewState.activeTokenId ?: return@addChangeListener
+                val size = ctx.viewState.collectionThumbSize
+                val token = ctx.bag.findToken(activeId)
+                val displaySize = if (token?.kind == TokenKind.MODIFIER) (size * 0.55).toInt().coerceAtLeast(24) else size
+                updateSnapshotSubscription(activeId, displaySize)
+            }
         }
 
-        ctx.bag.addListener { rebuild() }
+        ctx.addBagListener { rebuild() }
         ctx.viewState.addListener { rebuild() }
         rebuild()
     }
@@ -110,7 +116,6 @@ class TokensCollectionPanel(
 
     private fun rebuild() {
         val isAdjusting = slider.valueIsAdjusting
-        if (isAdjusting) savedActiveIcon = currentSnapshotLabel?.icon
         grid.removeAll()
         currentSnapshotLabel = null
         val size     = ctx.viewState.collectionThumbSize
@@ -120,11 +125,7 @@ class TokensCollectionPanel(
             val displaySize = if (token.kind == TokenKind.MODIFIER) (size * 0.55).toInt().coerceAtLeast(24) else size
             val isActive = token.id == activeId
             if (isActive) activeDisplaySize = displaySize
-            val icon: javax.swing.Icon = if (isActive && isAdjusting && savedActiveIcon != null) {
-                savedActiveIcon!!
-            } else {
-                ImageIcon(thumbnails.tokenThumbnail(token, displaySize))
-            }
+            val img = thumbnails.tokenThumbnail(token, displaySize)
             val cell = JPanel(BorderLayout()).apply {
                 preferredSize = Dimension(size + 8, size + 8)
                 val innerBorder = BorderFactory.createRaisedBevelBorder()
@@ -137,7 +138,7 @@ class TokensCollectionPanel(
                     BorderFactory.createCompoundBorder(outerBorder, innerBorder),
                 )
             }
-            val lbl = JLabel(icon, JLabel.CENTER)
+            val lbl = JLabel(ImageIcon(img), JLabel.CENTER)
             if (isActive) currentSnapshotLabel = lbl
             lbl.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
             lbl.addMouseListener(object : MouseAdapter() {

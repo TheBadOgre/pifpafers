@@ -43,6 +43,13 @@ class AppContext(
 
     val previewService: PreviewService = PreviewService(bag, tokenRenderer)
 
+    private val persistentBagListeners: MutableList<(ModelEvent) -> Unit> = mutableListOf()
+
+    fun addBagListener(l: (ModelEvent) -> Unit) {
+        bag.addListener(l)
+        persistentBagListeners += l
+    }
+
     init {
         val prefs = prefsStore.load()
         viewState.setCollectionThumbSize(prefs.collectionThumbSize)
@@ -55,6 +62,7 @@ class AppContext(
     fun replaceBag(newBag: TokenBag, file: Path?) {
         bag = newBag.also { b ->
             b.addListener { dirty = true }
+            for (l in persistentBagListeners) b.addListener(l)
         }
         currentFile = file
         dirty = false

@@ -43,7 +43,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
     init {
         preferredSize = Dimension(LOGICAL_CANVAS_W / 2, LOGICAL_CANVAS_H / 2)
         background = Color(60, 60, 60)
-        ctx.bag.addListener { event ->
+        ctx.addBagListener { event ->
             when (event) {
                 is ModelEvent.LayerAdded,
                 is ModelEvent.LayerRemoved,

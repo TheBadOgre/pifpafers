@@ -64,7 +64,7 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
         add(JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }, BorderLayout.SOUTH)
         slider.addChangeListener { ctx.viewState.setLayersThumbSize(slider.value) }
 
-        ctx.bag.addListener { rebuild() }
+        ctx.addBagListener { rebuild() }
         ctx.viewState.addListener { rebuild() }
         rebuild()
     }
@@ -157,13 +157,11 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                         dragLayerId = capturedLayerId
                         dragY = SwingUtilities.convertPoint(e.component, e.point, list).y
                         list.repaint()
-                        println("pressed - dragY: $dragY, dragLayerId: $dragLayerId")
                     }
                     override fun mouseDragged(e: MouseEvent) {
                         if (dragLayerId == null) return
                         dragY = SwingUtilities.convertPoint(e.component, e.point, list).y.coerceIn(0, list.height)
                         list.repaint()
-                        println("dragged - dragY: $dragY, dragLayerId: $dragLayerId")
                     }
                     override fun mouseReleased(e: MouseEvent) {
                         if (dragLayerId == null || e.button != MouseEvent.BUTTON1) return
@@ -172,11 +170,10 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                         dragLayerId = null
                         dragY = -1
                         list.repaint()
-                        println("released - dragY: $dragY, dragLayerId: $dragLayerId")
                     }
                 }
-//                row.addMouseListener(dragAdapter)
-//                row.addMouseMotionListener(dragAdapter)
+                row.addMouseListener(dragAdapter)
+                row.addMouseMotionListener(dragAdapter)
                 lbl.addMouseListener(dragAdapter)
                 lbl.addMouseMotionListener(dragAdapter)
 
