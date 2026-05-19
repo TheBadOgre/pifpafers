@@ -5,6 +5,7 @@ import net.rafkos.neuroshima.editor.assets.ImageCache
 import net.rafkos.neuroshima.editor.assets.ImagePreloader
 import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.TokenBag
+import net.rafkos.neuroshima.editor.model.TokenSide
 import java.nio.file.Path
 
 class BagOpener(
@@ -16,7 +17,9 @@ class BagOpener(
 
     suspend fun open(file: Path): TokenBag {
         val bag = store.load(file)
-        val referenced: List<AssetPath> = bag.tokens.flatMap { t -> t.layers.map { it.assetPath } }.distinct()
+        val referenced: List<AssetPath> = bag.tokens.flatMap { t ->
+            TokenSide.values().flatMap { side -> t.layers(side).map { it.assetPath } }
+        }.distinct()
         preloader.preload(referenced)
         return bag
     }

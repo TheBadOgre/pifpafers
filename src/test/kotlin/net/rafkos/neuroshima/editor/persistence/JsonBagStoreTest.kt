@@ -6,6 +6,7 @@ import net.rafkos.neuroshima.editor.model.LayerProperties
 import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.model.TokenBag
 import net.rafkos.neuroshima.editor.model.TokenKind
+import net.rafkos.neuroshima.editor.model.TokenSide
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -14,21 +15,22 @@ import java.nio.file.Path
 class JsonBagStoreTest {
 
     @Test
-    fun `round-trip preserves name, kinds, layers, and props`(@TempDir tmp: Path) {
+    fun `round-trip preserves name, kinds, both sides of layers, and props`(@TempDir tmp: Path) {
         val bag = TokenBag().apply { name = "My Army" }
         val unit = Token.createUnit()
-        unit.addLayer(Layer.create(AssetPath.Bundled("bg/red.png")))
+        unit.addLayer(TokenSide.FRONT, Layer.create(AssetPath.Bundled("bg/red.png")))
         unit.addLayer(
+            TokenSide.FRONT,
             Layer.create(
                 AssetPath.User("custom/icon.png"),
                 LayerProperties(offsetX = 5, rotation = 90f, scale = 0.5f, opacity = 0.75f),
             )
         )
+        unit.addLayer(TokenSide.BACK, Layer.create(AssetPath.Bundled("bg/blue.png")))
         bag.addToken(unit)
         bag.addToken(Token.createModifier())
 
         val file = tmp.resolve("army.box")
-        // resolver returns true for any path in this test (no asset validation here)
         val store = JsonBagStore(assetResolver = { true })
         store.save(bag, file)
         val loaded = store.load(file)
@@ -37,36 +39,36 @@ class JsonBagStoreTest {
         assertEquals(bag.tokens.size, loaded.tokens.size)
         assertEquals(TokenKind.UNIT, loaded.tokens[0].kind)
         assertEquals(TokenKind.MODIFIER, loaded.tokens[1].kind)
-        assertEquals(2, loaded.tokens[0].layers.size)
-        assertEquals(AssetPath.Bundled("bg/red.png"), loaded.tokens[0].layers[0].assetPath)
-        assertEquals(AssetPath.User("custom/icon.png"), loaded.tokens[0].layers[1].assetPath)
-        assertEquals(5, loaded.tokens[0].layers[1].props.offsetX)
-        assertEquals(90f, loaded.tokens[0].layers[1].props.rotation)
-        assertEquals(0.5f, loaded.tokens[0].layers[1].props.scale)
-        assertEquals(0.75f, loaded.tokens[0].layers[1].props.opacity)
+        assertEquals(2, loaded.tokens[0].layers(TokenSide.FRONT).size)
+        assertEquals(1, loaded.tokens[0].layers(TokenSide.BACK).size)
+        assertEquals(AssetPath.Bundled("bg/red.png"), loaded.tokens[0].layers(TokenSide.FRONT)[0].assetPath)
+        assertEquals(AssetPath.User("custom/icon.png"), loaded.tokens[0].layers(TokenSide.FRONT)[1].assetPath)
+        assertEquals(AssetPath.Bundled("bg/blue.png"), loaded.tokens[0].layers(TokenSide.BACK)[0].assetPath)
+        assertEquals(5, loaded.tokens[0].layers(TokenSide.FRONT)[1].props.offsetX)
+        assertEquals(0.75f, loaded.tokens[0].layers(TokenSide.FRONT)[1].props.opacity)
     }
 
     @Test
-    fun `load rejects unknown schema version`(@TempDir tmp: java.nio.file.Path) {
-        val file = tmp.resolve("future.box")
+    fun `load rejects unknown schema version (including legacy v1)`(@TempDir tmp: java.nio.file.Path) {
+        val file = tmp.resolve("legacy.box")
         java.nio.file.Files.writeString(
             file,
-            """{"schemaVersion": 999, "name": "x", "tokens": []}"""
+            """{"schemaVersion": 1, "name": "x", "tokens": []}"""
         )
         val store = JsonBagStore(assetResolver = { true })
         val ex = org.junit.jupiter.api.Assertions.assertThrows(
             SchemaVersionException::class.java
         ) { store.load(file) }
-        org.junit.jupiter.api.Assertions.assertEquals(999, ex.found)
+        org.junit.jupiter.api.Assertions.assertEquals(1, ex.found)
     }
 
     @Test
-    fun `load reports every missing asset`(@TempDir tmp: java.nio.file.Path) {
+    fun `load reports every missing asset across both sides`(@TempDir tmp: java.nio.file.Path) {
         val bag = TokenBag()
         val t = Token.createUnit()
-        t.addLayer(Layer.create(AssetPath.Bundled("missing/a.png")))
-        t.addLayer(Layer.create(AssetPath.User("missing/b.png")))
-        t.addLayer(Layer.create(AssetPath.Bundled("ok/c.png")))
+        t.addLayer(TokenSide.FRONT, Layer.create(AssetPath.Bundled("missing/a.png")))
+        t.addLayer(TokenSide.BACK, Layer.create(AssetPath.User("missing/b.png")))
+        t.addLayer(TokenSide.FRONT, Layer.create(AssetPath.Bundled("ok/c.png")))
         bag.addToken(t)
         val file = tmp.resolve("army.box")
         JsonBagStore(assetResolver = { true }).save(bag, file)

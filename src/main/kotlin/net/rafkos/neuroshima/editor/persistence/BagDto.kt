@@ -13,7 +13,8 @@ internal data class BagDto(
 internal data class TokenDto(
     val id: String,
     val kind: String,
-    val layers: List<LayerDto>,
+    val front: List<LayerDto>,
+    val back: List<LayerDto>,
 )
 
 @Serializable

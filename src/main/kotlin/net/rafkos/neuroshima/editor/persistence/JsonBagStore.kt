@@ -7,12 +7,13 @@ import net.rafkos.neuroshima.editor.model.LayerProperties
 import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.model.TokenBag
 import net.rafkos.neuroshima.editor.model.TokenKind
+import net.rafkos.neuroshima.editor.model.TokenSide
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.UUID
 
-const val CURRENT_SCHEMA_VERSION = 1
+const val CURRENT_SCHEMA_VERSION = 2
 
 class SchemaVersionException(val found: Int) :
     RuntimeException("Unsupported schema version: $found (current = $CURRENT_SCHEMA_VERSION)")
@@ -47,9 +48,15 @@ class JsonBagStore(
         if (dto.schemaVersion != CURRENT_SCHEMA_VERSION) throw SchemaVersionException(dto.schemaVersion)
 
         val missing = mutableListOf<AssetPath>()
-        for (t in dto.tokens) for (l in t.layers) {
-            val ap = AssetPath.parse(l.asset)
-            if (!assetResolver(ap)) missing += ap
+        for (t in dto.tokens) {
+            for (l in t.front) {
+                val ap = AssetPath.parse(l.asset)
+                if (!assetResolver(ap)) missing += ap
+            }
+            for (l in t.back) {
+                val ap = AssetPath.parse(l.asset)
+                if (!assetResolver(ap)) missing += ap
+            }
         }
         if (missing.isNotEmpty()) throw MissingAssetsException(missing)
 
@@ -61,7 +68,8 @@ class JsonBagStore(
     private fun Token.toDto(): TokenDto = TokenDto(
         id = id.toString(),
         kind = kind.name,
-        layers = layers.map { it.toDto() },
+        front = layers(TokenSide.FRONT).map { it.toDto() },
+        back = layers(TokenSide.BACK).map { it.toDto() },
     )
 
     private fun Layer.toDto(): LayerDto = LayerDto(
@@ -76,7 +84,8 @@ class JsonBagStore(
 
     private fun TokenDto.toModel(): Token {
         val t = Token(UUID.fromString(id), TokenKind.valueOf(kind))
-        for (l in layers) t.addLayer(l.toModel())
+        for (l in front) t.addLayer(TokenSide.FRONT, l.toModel())
+        for (l in back) t.addLayer(TokenSide.BACK, l.toModel())
         return t
     }
 

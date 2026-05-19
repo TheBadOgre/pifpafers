@@ -7,6 +7,7 @@ import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.model.TokenBag
+import net.rafkos.neuroshima.editor.model.TokenSide
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -35,8 +36,8 @@ class BagOpenerTest {
 
         val bag = TokenBag().apply { name = "test" }
         val t = Token.createUnit()
-        t.addLayer(Layer.create(AssetPath.Bundled("a.png")))
-        t.addLayer(Layer.create(AssetPath.User("b.png")))
+        t.addLayer(TokenSide.FRONT, Layer.create(AssetPath.Bundled("a.png")))
+        t.addLayer(TokenSide.FRONT, Layer.create(AssetPath.User("b.png")))
         bag.addToken(t)
         val file = tmp.resolve("army.box")
         JsonBagStore(assetResolver = { lib.assetExists(it) }).save(bag, file)
@@ -46,7 +47,7 @@ class BagOpenerTest {
         val loaded = runBlocking { opener.open(file) }
         assertEquals("test", loaded.name)
         assertEquals(1, loaded.tokens.size)
-        assertEquals(2, loaded.tokens.first().layers.size)
+        assertEquals(2, loaded.tokens.first().layers(TokenSide.FRONT).size)
         assertNotNull(cache.get(AssetPath.Bundled("a.png")))
         assertNotNull(cache.get(AssetPath.User("b.png")))
     }
@@ -59,7 +60,7 @@ class BagOpenerTest {
 
         val bag = TokenBag()
         val t = Token.createUnit()
-        t.addLayer(Layer.create(AssetPath.Bundled("missing.png")))
+        t.addLayer(TokenSide.FRONT, Layer.create(AssetPath.Bundled("missing.png")))
         bag.addToken(t)
         val file = tmp.resolve("army.box")
         JsonBagStore(assetResolver = { true }).save(bag, file)
