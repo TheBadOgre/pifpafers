@@ -49,9 +49,11 @@ class DualSideRenderTest {
         val renderer = TokenRenderer(cache, ProcessedLayerCache(8))
         val img = renderer.renderDual(token, sizePx = 200)
         val tl = img.getRGB(80, 80)
-        val br = img.getRGB(180, 180)
+        // (180, 150): x=180 is outside the front image [0,159], y=150 maps to back-local (140,110)
+        // → logical ≈ (852, 616) which is well inside the hex shape.
+        val br = img.getRGB(180, 150)
         assertTrue(((tl ushr 16) and 0xff) > 200) { "top-left should be red-ish, got 0x${Integer.toHexString(tl)}" }
-        assertTrue((br and 0xff) > 200) { "bottom-right should be blue-ish, got 0x${Integer.toHexString(br)}" }
+        assertTrue((br and 0xff) > 200) { "right side should be blue-ish (back side, outside front overlay), got 0x${Integer.toHexString(br)}" }
     }
 
     @Test
