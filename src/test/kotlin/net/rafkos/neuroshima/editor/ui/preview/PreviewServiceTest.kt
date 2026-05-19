@@ -5,6 +5,7 @@ import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.model.TokenBag
+import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.render.ProcessedLayerCache
 import net.rafkos.neuroshima.editor.render.TokenRenderer
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -29,7 +30,7 @@ class PreviewServiceTest {
         val cache = ImageCache(8)
         val asset = AssetPath.Bundled("a.png"); cache.put(asset, solid(Color.RED))
         val bag = TokenBag()
-        val token = Token.createUnit().apply { addLayer(Layer.create(asset)) }
+        val token = Token.createUnit().apply { addLayer(TokenSide.FRONT, Layer.create(asset)) }
         bag.addToken(token)
         val service = PreviewService(bag, TokenRenderer(cache, ProcessedLayerCache(8)),
             debounceMillis = 80L)
@@ -52,7 +53,7 @@ class PreviewServiceTest {
         val cache = ImageCache(8)
         val asset = AssetPath.Bundled("a.png"); cache.put(asset, solid(Color.RED))
         val bag = TokenBag()
-        val token = Token.createUnit().apply { addLayer(Layer.create(asset)) }
+        val token = Token.createUnit().apply { addLayer(TokenSide.FRONT, Layer.create(asset)) }
         bag.addToken(token)
         val service = PreviewService(bag, TokenRenderer(cache, ProcessedLayerCache(8)),
             debounceMillis = 60L)

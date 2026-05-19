@@ -57,7 +57,7 @@ class PreviewService(
     private fun render(key: PreviewKey, s: Subscription, myVersion: Long) {
         if (s.version.get() != myVersion) return
         val token = bag.findToken(key.tokenId) ?: return
-        val img = tokenRenderer.render(token, s.sizePx)
+        val img = tokenRenderer.renderDual(token, s.sizePx)
         if (s.version.get() != myVersion) return
         SwingUtilities.invokeLater { s.onReady(img) }
     }
