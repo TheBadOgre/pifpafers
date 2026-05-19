@@ -2,10 +2,12 @@ package net.rafkos.neuroshima.editor.command
 
 import net.rafkos.neuroshima.editor.model.LayerProperties
 import net.rafkos.neuroshima.editor.model.TokenBag
+import net.rafkos.neuroshima.editor.model.TokenSide
 import java.util.UUID
 
 class ColorizeCommand(
     private val tokenId: UUID,
+    private val side: TokenSide,
     private val changes: List<LayerChange>,
 ) : Command {
     data class LayerChange(val layerId: UUID, val oldProps: LayerProperties, val newProps: LayerProperties)
@@ -13,11 +15,11 @@ class ColorizeCommand(
     override val label: String = "Colorize"
 
     override fun execute(bag: TokenBag) {
-        for (c in changes) bag.updateLayerProps(tokenId, c.layerId, c.newProps)
+        for (c in changes) bag.updateLayerProps(tokenId, side, c.layerId, c.newProps)
     }
 
     override fun undo(bag: TokenBag) {
-        for (c in changes) bag.updateLayerProps(tokenId, c.layerId, c.oldProps)
+        for (c in changes) bag.updateLayerProps(tokenId, side, c.layerId, c.oldProps)
     }
 
     override fun mergeWith(next: Command): Command? = null
