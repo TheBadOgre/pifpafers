@@ -6,6 +6,7 @@ import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.LayerProperties
 import net.rafkos.neuroshima.editor.model.Token
+import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.ui.canvas.CanvasMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -34,7 +35,7 @@ class SelectToolTest {
         )
         val asset = AssetPath.Bundled("a.png")
         ctx.imageCache.put(asset, layerImg)
-        val token = Token.createUnit().apply { addLayer(Layer.create(asset, props)) }
+        val token = Token.createUnit().apply { addLayer(TokenSide.FRONT, Layer.create(asset, props)) }
         ctx.bag.addToken(token)
         ctx.viewState.setActiveToken(token.id)
         ctx.canvasMapper = CanvasMapper(
@@ -54,14 +55,14 @@ class SelectToolTest {
         val (ctx, token) = ctxWithLayer(tmp, solid(Color.RED, 100, 100), LayerProperties())
         val panel = JPanel()
         SelectTool().onMousePressed(ctx, click(panel, 245, 245))
-        assertEquals(setOf(token.layers[0].id), ctx.viewState.selectedLayers)
+        assertEquals(setOf(token.layers(TokenSide.FRONT)[0].id), ctx.viewState.selectedLayers)
     }
 
     @Test
     fun `click on transparent area clears selection`(@TempDir tmp: Path) {
         val img = BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB)
         val (ctx, token) = ctxWithLayer(tmp, img, LayerProperties())
-        ctx.viewState.replaceSelection(listOf(token.layers[0].id))
+        ctx.viewState.replaceSelection(listOf(token.layers(TokenSide.FRONT)[0].id))
         val panel = JPanel()
         SelectTool().onMousePressed(ctx, click(panel, 245, 245))
         assertTrue(ctx.viewState.selectedLayers.isEmpty())
@@ -72,7 +73,7 @@ class SelectToolTest {
         val (ctx, token) = ctxWithLayer(tmp, solid(Color.RED, 100, 100), LayerProperties())
         val panel = JPanel()
         SelectTool().onMousePressed(ctx, click(panel, 245, 245, ctrl = true))
-        assertEquals(setOf(token.layers[0].id), ctx.viewState.selectedLayers)
+        assertEquals(setOf(token.layers(TokenSide.FRONT)[0].id), ctx.viewState.selectedLayers)
         SelectTool().onMousePressed(ctx, click(panel, 245, 245, ctrl = true))
         assertTrue(ctx.viewState.selectedLayers.isEmpty())
     }

@@ -3,6 +3,7 @@ package net.rafkos.neuroshima.editor.ui.tools
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.LayerProperty
 import net.rafkos.neuroshima.editor.command.MultiLayerPropertyCommand
+import net.rafkos.neuroshima.editor.model.TokenSide
 import java.awt.Cursor
 import java.awt.event.MouseEvent
 
@@ -15,12 +16,13 @@ class ScaleTool : Tool {
     override fun onMousePressed(ctx: AppContext, e: MouseEvent) {
         val tokenId = ctx.viewState.activeTokenId ?: return
         val token = ctx.bag.findToken(tokenId) ?: return
-        val selected = ctx.viewState.selectedLayers.ifEmpty { token.layers.map { it.id }.toSet() }
+        val side = ctx.viewState.activeSide
+        val selected = ctx.viewState.selectedLayers.ifEmpty { token.layers(side).map { it.id }.toSet() }
         startX = e.x
         startTargets = selected.mapNotNull { id ->
-            val layer = token.findLayer(id) ?: return@mapNotNull null
+            val layer = token.findLayer(side, id) ?: return@mapNotNull null
             val v = layer.props.scale.toDouble()
-            MultiLayerPropertyCommand.Target(tokenId, id, oldValue = v, newValue = v)
+            MultiLayerPropertyCommand.Target(tokenId, side, id, oldValue = v, newValue = v)
         }
     }
 

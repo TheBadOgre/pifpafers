@@ -2,6 +2,7 @@ package net.rafkos.neuroshima.editor.ui.tools
 
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.MoveLayerCommand
+import net.rafkos.neuroshima.editor.model.TokenSide
 import java.awt.Cursor
 import java.awt.event.MouseEvent
 import java.util.UUID
@@ -18,11 +19,12 @@ class MoveTool : Tool {
     override fun onMousePressed(ctx: AppContext, e: MouseEvent) {
         val tokenId = ctx.viewState.activeTokenId ?: return
         val token = ctx.bag.findToken(tokenId) ?: return
-        val selected = ctx.viewState.selectedLayers.ifEmpty { token.layers.map { it.id }.toSet() }
+        val side = ctx.viewState.activeSide
+        val selected = ctx.viewState.selectedLayers.ifEmpty { token.layers(side).map { it.id }.toSet() }
         startX = e.x; startY = e.y; startTokenId = tokenId
         startTargets = selected.mapNotNull { id ->
-            val layer = token.findLayer(id) ?: return@mapNotNull null
-            MoveLayerCommand.Target(tokenId, id, oldX = layer.props.offsetX, oldY = layer.props.offsetY,
+            val layer = token.findLayer(side, id) ?: return@mapNotNull null
+            MoveLayerCommand.Target(tokenId, side, id, oldX = layer.props.offsetX, oldY = layer.props.offsetY,
                 newX = layer.props.offsetX, newY = layer.props.offsetY)
         }
     }

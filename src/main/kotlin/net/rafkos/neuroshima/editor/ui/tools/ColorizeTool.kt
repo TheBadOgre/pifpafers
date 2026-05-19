@@ -3,6 +3,7 @@ package net.rafkos.neuroshima.editor.ui.tools
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.ColorizeCommand
 import net.rafkos.neuroshima.editor.model.LayerProperties
+import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.ui.dialogs.ColorizeDialog
 import java.awt.Component
 import java.awt.event.MouseEvent
@@ -17,11 +18,12 @@ class ColorizeTool : Tool {
         fun run(ctx: AppContext, dialogParent: Component) {
             val tokenId = ctx.viewState.activeTokenId ?: return
             val token = ctx.bag.findToken(tokenId) ?: return
+            val side = ctx.viewState.activeSide
             val selected = ctx.viewState.selectedLayers
             if (selected.isEmpty()) return
 
             val originalProps: Map<UUID, LayerProperties> = selected
-                .mapNotNull { id -> token.findLayer(id)?.let { id to it.props } }
+                .mapNotNull { id -> token.findLayer(side, id)?.let { id to it.props } }
                 .toMap()
             if (originalProps.isEmpty()) return
 
@@ -46,11 +48,11 @@ class ColorizeTool : Tool {
             )
 
             fun applyPreview(h: Float, s: Float, b: Float) {
-                for ((id, orig) in originalProps) ctx.bag.updateLayerProps(tokenId, id, propsFor(orig, h, s, b))
+                for ((id, orig) in originalProps) ctx.bag.updateLayerProps(tokenId, side, id, propsFor(orig, h, s, b))
             }
 
             fun revertPreview() {
-                for ((id, orig) in originalProps) ctx.bag.updateLayerProps(tokenId, id, orig)
+                for ((id, orig) in originalProps) ctx.bag.updateLayerProps(tokenId, side, id, orig)
             }
 
             ctx.viewState.setSuppressSelectionTint(true)
@@ -72,7 +74,7 @@ class ColorizeTool : Tool {
             val changes = originalProps.map { (id, orig) ->
                 ColorizeCommand.LayerChange(id, orig, propsFor(orig, fh, fs, fb))
             }
-            if (changes.isNotEmpty()) ctx.history.execute(ctx.bag, ColorizeCommand(tokenId, changes))
+            if (changes.isNotEmpty()) ctx.history.execute(ctx.bag, ColorizeCommand(tokenId, side, changes))
         }
     }
 }

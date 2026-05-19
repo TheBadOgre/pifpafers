@@ -1,6 +1,7 @@
 package net.rafkos.neuroshima.editor.ui.tools
 
 import net.rafkos.neuroshima.editor.app.AppContext
+import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.render.AffineBuilder
 import net.rafkos.neuroshima.editor.ui.canvas.LOGICAL_CENTER_X
 import net.rafkos.neuroshima.editor.ui.canvas.LOGICAL_CENTER_Y
@@ -14,8 +15,9 @@ class SelectTool : Tool {
         if (e.button != MouseEvent.BUTTON1) return
         val mapper = ctx.canvasMapper ?: return
         val token = ctx.viewState.activeTokenId?.let { ctx.bag.findToken(it) } ?: return
+        val side = ctx.viewState.activeSide
         val logical = mapper.screenToLogical(e.point)
-        val hitId = token.layers.asReversed().firstOrNull { layer ->
+        val hitId = token.layers(side).asReversed().firstOrNull { layer ->
             val img = ctx.imageCache.get(layer.assetPath) ?: return@firstOrNull false
             val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER_X, LOGICAL_CENTER_Y, img.width, img.height)
             val inv = runCatching { xform.createInverse() }.getOrNull() ?: return@firstOrNull false
