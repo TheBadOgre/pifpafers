@@ -74,28 +74,31 @@ util/        Logging, geometry helpers
 
 ```
 TokenBag(name: String, schemaVersion: Int, tokens: MutableList<Token>)
-  Token(id: UUID, kind: TokenKind { UNIT, MODIFIER }, layers: MutableList<Layer>)
-    Layer(id: UUID, assetPath: AssetPath, props: LayerProperties)
-      LayerProperties(
-        offsetX: Int, offsetY: Int,        // px, relative to token center
-        rotation: Float,                    // degrees 0..360
-        scale: Float,                       // 1.0 = native
-        opacity: Float,                     // 0..1
-        hue: Float,                         // 0..1 shift
-        saturation: Float,                  // 0..1 (1 = unchanged)
-        brightness: Float,                  // 0..1 (1 = unchanged)
-        colorize: Boolean = false           // when true, hue/sat applied as tint not shift
-      )
+  Token(id: UUID, kind: TokenKind { UNIT, MODIFIER })           // two sides per token
+    front: MutableList<Layer>                                    // accessed via layers(FRONT)
+    back:  MutableList<Layer>                                    // accessed via layers(BACK)
+      Layer(id: UUID, assetPath: AssetPath, props: LayerProperties)
+        LayerProperties(
+          offsetX: Int, offsetY: Int,        // px, relative to token center
+          rotation: Float,                    // degrees 0..360
+          scale: Float,                       // 1.0 = native
+          opacity: Float,                     // 0..1
+          hue: Float,                         // 0..1 shift
+          saturation: Float,                  // 0..1 (1 = unchanged)
+          brightness: Float,                  // 0..1 (1 = unchanged)
+          colorize: Boolean = false           // when true, hue/sat applied as tint not shift
+        )                                                        // unchanged
 ```
 
 - All ids are UUIDs and **persisted** for stable command targets.
-- Mutators emit `ModelEvent` (`NameChanged`, `TokenAdded`, `TokenRemoved`, `TokensReordered`, `LayerAdded`, `LayerRemoved`, `LayerReordered`, `LayerPropsChanged`) through a lightweight observer; renderers/thumbnails/preview/canvas listen.
+- `TokenSide { FRONT, BACK }` — every layer-targeting `TokenBag` method, `ModelEvent`, and `Command` carries an explicit `side`. Default side after token creation/activation is `FRONT`.
+- Mutators emit `ModelEvent` (`NameChanged`, `TokenAdded`, `TokenRemoved`, `TokensReordered`, `LayerAdded`, `LayerRemoved`, `LayerReordered`, `LayerPropsChanged`) through a lightweight observer; renderers/thumbnails/preview/canvas listen. Layer events (`LayerAdded`, `LayerRemoved`, `LayerReordered`, `LayerPropsChanged`) carry a `side: TokenSide` field.
 - `AssetPath` is sealed (`AssetPath.Bundled` / `AssetPath.User`) — the two roots never conflate.
 
 ## Persistence (`.box` JSON)
 
 - Pretty-printed JSON via `kotlinx.serialization`, diff-friendly under git.
-- `CURRENT_SCHEMA_VERSION = 1` (`JsonBagStore`). Loader rejects unknown versions.
+- `CURRENT_SCHEMA_VERSION = 2` (`JsonBagStore`). Loader rejects unknown versions. **No backwards compatibility. v1 files are rejected with `SchemaVersionException`.**
 - Asset URI scheme: `bundled://<rel>` or `user://<rel>`.
 - File extension: `.box`.
 - **Atomic save**: write `.tmp` then `Files.move(..., ATOMIC_MOVE)`.
@@ -104,12 +107,13 @@ TokenBag(name: String, schemaVersion: Int, tokens: MutableList<Token>)
 - **Save and Load both clear `CommandHistory`** (wired in `MenuBuilder` save/saveAs and `AppContext.openBag`).
 - Example shape:
   ```json
-  { "schemaVersion": 1, "name": "My Army",
+  { "schemaVersion": 2, "name": "My Army",
     "tokens": [{ "id": "...", "kind": "UNIT",
-      "layers": [{ "id": "...", "asset": "bundled://units/grunt.png",
+      "front": [{ "id": "...", "asset": "bundled://units/grunt.png",
         "props": { "offsetX": 0, "offsetY": 0, "rotation": 0.0, "scale": 1.0,
                    "opacity": 1.0, "hue": 0.0, "saturation": 1.0, "brightness": 1.0,
-                   "colorize": false } }] }] }
+                   "colorize": false } }],
+      "back": [] }] }
   ```
 
 ## Assets
@@ -136,6 +140,12 @@ Two roots merged into one virtual tree:
 Concrete commands on disk:
 `AddTokenCommand`, `RemoveTokenCommand`, `DuplicateTokenCommand`, `AddLayerCommand`, `RemoveLayerCommand`, `DuplicateLayerCommand`, `ReorderLayerCommand`, `SetLayerPropertyCommand` (one per `LayerProperty` enum value), `MultiLayerPropertyCommand` (tool drags affecting multi-selected layers), `ColorizeCommand`.
 
+Two-sided notes:
+- Every layer-targeting command (`AddLayerCommand`, `RemoveLayerCommand`, `DuplicateLayerCommand`, `ReorderLayerCommand`, `SetLayerPropertyCommand`) takes a `side: TokenSide` parameter.
+- `MoveLayerCommand.Target` and `MultiLayerPropertyCommand.Target` each include a `side` field so multi-select operations across the active side are scoped correctly.
+- `ColorizeCommand` is per-side: it records the original and final props for layers on a single `TokenSide`.
+- `RemoveTokenCommand` and `DuplicateTokenCommand` snapshot/restore both sides in full.
+
 ## Rendering
 
 **Logical canvas dimensions** (`TokenRenderer.LOGICAL_CANVAS_W = 1044`, `LOGICAL_CANVAS_H = 902`; center `522.0, 451.0` in `CanvasMapper`). These are the print-area logical pixels; the visible token shape (hex / circle) sits centered within and the bleed/overlay extend to the full rectangle.
@@ -145,8 +155,9 @@ Concrete commands on disk:
 - `TokenCanvasPanel` keeps a `LOGICAL_CANVAS_W × LOGICAL_CANVAS_H` **composite cache** per active token, invalidated only by `ModelEvent`s touching the active token (`LayerAdded`/`Removed`/`Reordered`/`PropsChanged`). Zoom, pan, selection change, overlay toggle do **not** invalidate — they only `repaint()`.
 - `LayerRenderer.applyPixelOps`: identity short-circuit; `RescaleOp` for opacity (and for non-colorize brightness); **per-pixel HSB loop** (`Color.RGBtoHSB`/`HSBtoRGB`) for non-colorize saturation/hue. `colorize` mode is delegated to `render/color/ColorizePipeline` — a perceptual recolor in OKLab/OKLCh: sRGB→linear (8-bit LUT) → OKLab → scale L by `brightness`, replace H, derive C via luminance-bell × soft-knee (tanh) × source-chroma material modulation → mild S-curve on L → linear → sRGB. When `colorize=true` the per-pixel pipeline owns brightness (perceptual-L scale, not sRGB RGB multiply), so `LayerRenderer` skips the post-pipeline brightness `RescaleOp`. Slider semantics: `hue` ∈ 0..1, `saturation` is the colorize amount (tool maps chooser HSB saturation × 2 → "full" recolor at chooser sat=1), `brightness` is the perceptual-L multiplier (chooser HSB brightness passed through directly). (Vectorizing the non-colorize HSB loop via `LookupOp`/`BandCombineOp` remains aspirational.)
 - `ProcessedLayerCache` keyed by `(assetPath, props.hash())`, bound 256.
-- `TokenRenderer.render(token, sizePx)` fit-scales `LOGICAL_CANVAS_W × LOGICAL_CANVAS_H` → `sizePx × sizePx` via uniform `g.scale(fit)` so thumbnails show the whole composition correctly regardless of layer offsets.
-- `ThumbnailRenderer` has separate `TokenKey(tokenId, sizePx)` and `LayerKey(tokenId, layerId, sizePx)` cache entries (sealed `Key`); `layerThumbnail` builds a transient one-layer `Token` internally — its synthetic id is never used as a cache key. `invalidateToken` drops both.
+- `TokenRenderer.render(token, side, sizePx)` fit-scales `LOGICAL_CANVAS_W × LOGICAL_CANVAS_H` → `sizePx × sizePx` via uniform `g.scale(fit)` so thumbnails show the whole composition correctly regardless of layer offsets.
+- `TokenRenderer.renderDual(token, sizePx)` — square composite used by the tokens-collection thumbnail and the active-token preview snapshot. Front is placed at top-left at 80% scale, back at bottom-right at 80% scale; front is decorated with a 1px dark-grey alpha-aware outline at 80% opacity.
+- `ThumbnailRenderer` has separate `TokenKey(tokenId, sizePx)` (→ dual composite) and `LayerKey(tokenId, side, layerId, sizePx)` cache entries (sealed `Key`); `layerThumbnail` builds a transient one-layer `Token` internally — its synthetic id is never used as a cache key. `invalidateToken` drops both.
 - `PreviewService` (singleton `ScheduledExecutorService`, 300 ms debounce, per-key `AtomicLong` version counter — stale results discarded) renders an HQ snapshot only for the **selected** token tile; `SwingUtilities.invokeLater` swaps the `ImageIcon` on EDT.
 - All image decoding off-EDT. `ImageCache` = `LinkedHashMap<AssetPath, SoftReference<BufferedImage>>`, LRU bound 256.
 - **Selection feedback**: blue-hue tint overlay (`tintBlue` → pure `0x0055ff`, alpha-preserving) composited at `AlphaComposite.SRC_OVER, 0.45f` over selected layers. Suppressed when `viewState.suppressSelectionTint == true` (e.g., while the colorize dialog is open so the live recolor preview is visible without the blue tint clobbering it). Not a dashed marker (legacy design — replaced).
@@ -156,10 +167,10 @@ Concrete commands on disk:
 Five regions:
 - **Top bar**: rename token field (commits on Enter / focus-lost → rename command, undoable) · Save (`Ctrl+S`) · Save As · Print (stub).
 - **Left strip**: 6 mutually-exclusive tool radio buttons — select, move, rotate, scale, opacity, colorize. Active tool installs canvas mouse handler + cursor.
-- **Left panel — Tokens collection**: scrollable grid; thumbnail shape mirrors `kind` (hex / circle). `+ Unit` / `+ Modifier` buttons + size slider on the same row at the bottom. Modifier preview renders at 55% size (centered) so circle vs hex is visually distinct.
-- **Center — Canvas**: token shape outline, optional `☑ show overlay` toggle (draws `HEX_template_lines.png` over the token; view state, not undoable). When no token is selected, only the dark-grey background paints.
-- **Right top — Current token layers**: vertical list, **top of list = topmost in z-order**. Each row: layer thumbnail + up/down/duplicate/remove buttons. Multi-select (Ctrl+click / Esc to clear). Raised bevel border + 1 px margin per row.
-- **Right bottom — Layer properties**: visible **only when exactly one layer is selected**. Eight fields + `colorize` toggle. Each edit fires `SetLayerPropertyCommand` (merge-window collapsed). **Reset to defaults** button at the bottom. When >1 layer is selected, shows `label.multi.layer` message instead of fields.
+- **Left panel — Tokens collection**: scrollable grid; thumbnail shape mirrors `kind` (hex / circle). `+ Unit` / `+ Modifier` buttons + size slider on the same row at the bottom. Previews are 1:1 square dual-side composites (front top-left, back bottom-right); the prior 55%-shrink for modifiers no longer applies.
+- **Center — Canvas**: A localized "side: front / back" label sits in the top-left corner of the canvas region (above the canvas). The canvas south panel hosts both the `☑ show overlay` toggle (draws `HEX_template_lines.png` over the token; view state, not undoable) and a **Flip side** button that toggles between `FRONT` and `BACK`. Switching side clears the layer selection. When no token is selected, only the dark-grey background paints.
+- **Right top — Current token layers**: vertical list showing only the layers of the **active side**, **top of list = topmost in z-order**. Each row: layer thumbnail + up/down/duplicate/remove buttons. Multi-select (Ctrl+click / Esc to clear). Row border is a constant 2px on both selected and unselected states so the row height does not jitter when selection toggles. Side switch implicitly clears selection.
+- **Right bottom — Layer properties**: visible **only when exactly one layer is selected**. Eight fields + `colorize` toggle. Each edit fires `SetLayerPropertyCommand` (merge-window collapsed). **Reset to defaults** button is wrapped in a panel with a `(top=8)` `EmptyBorder` for visual separation from the spinner grid. When >1 layer is selected, shows `label.multi.layer` message instead of fields.
 - **Bottom — Assets library**: folder tree (merged bundled+user) · grid of asset previews (white background fill so transparent PNGs are visible) · **Refresh content** button (rescans `user://` only) · size slider. Hand cursor on hover.
 - **Status bar**: `loaded file: <name>` · `tokens: N (U units, M modifiers)` · lafix st-saved timestamp · **dirty marker `*`** (the asterisk lives here, not in the window title).
 
@@ -190,10 +201,11 @@ Three independent thumbnail size sliders (tokens / layers / assets), range **48�
   - `persistence/` — `JsonBagStore` round-trip, unknown-`schemaVersion` rejection, `BagOpener` missing-asset enumeration.
   - `command/` — every command's do/undo invariants, `CommandHistory` merge window, save/load history-clear.
   - `assets/` — `AssetLibrary` bundled-wins conflict rule, `ImageCache` LRU eviction + soft-reference behaviour, `ImagePreloader`.
-  - `render/` — `LayerRenderer` non-colorize paths vs a legacy reference (`LayerRendererLegacy`) with ≤2/255 per-channel delta on a fixture; `render/color/` covers `OkLab` round-trip and `ColorizePipeline` invariants (transparent passthrough, luminance preservation, hue targeting, highlight attenuation); plus `AffineBuilder`, `ThumbnailRenderer` cache-key isolation, `TokenRenderer` fit-scale, `ProcessedLayerCache`.
-  - `ui/` — `ViewState`, `CanvasMapper` round-trip `screenToLogical(logicalToScreen(p)) == p`, `SelectTool` alpha-aware hit test (threshold = 8/255), `PreviewService` debounce + version-counter staleness drop.
+  - `render/` — `LayerRenderer` non-colorize paths vs a legacy reference (`LayerRendererLegacy`) with ≤2/255 per-channel delta on a fixture; `render/color/` covers `OkLab` round-trip and `ColorizePipeline` invariants (transparent passthrough, luminance preservation, hue targeting, highlight attenuation); plus `AffineBuilder`, `ThumbnailRenderer` cache-key isolation, `TokenRenderer` fit-scale, `ProcessedLayerCache`; `DualSideRenderTest` verifies `renderDual` composite layout and outline decoration.
+  - `ui/` — `ViewState`, `CanvasMapper` round-trip `screenToLogical(logicalToScreen(p)) == p`, `SelectTool` alpha-aware hit test (threshold = 8/255), `PreviewService` debounce + version-counter staleness drop. Tests in `ui/tools/` and `ViewState` were updated to thread `TokenSide` through.
   - `i18n/`, `prefs/` — service round-trip, key resolution.
-- **Integration**: `integration/RoundTripRenderTest` renders a sample bag and compares against a committed reference PNG (small per-pixel delta tolerance). **Regenerate the reference PNG when intentional render changes land.**
+- **Integration**: `integration/RoundTripRenderTest` renders a sample bag (both sides) and compares against a committed reference PNG (small per-pixel delta tolerance). **Regenerate the reference PNG when intentional render changes land.** Updated to thread `TokenSide` through.
+- Tests in `command/`, `model/`, and `persistence/` were also updated to carry `TokenSide` through all layer-targeting operations.
 - **No Swing widget interaction tests** — covered by manual smoke checks.
 
 When adding a feature: add tests in the matching package directory under `src/test/kotlin/...`.
