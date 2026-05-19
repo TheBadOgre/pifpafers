@@ -2,22 +2,23 @@ package net.rafkos.neuroshima.editor.model
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class TokenTest {
 
     @Test
-    fun `unit token has UNIT kind`() {
+    fun `unit token has UNIT kind and empty sides`() {
         val t = Token.createUnit()
         assertEquals(TokenKind.UNIT, t.kind)
-        assertEquals(0, t.layers.size)
+        assertEquals(0, t.layers(TokenSide.FRONT).size)
+        assertEquals(0, t.layers(TokenSide.BACK).size)
     }
 
     @Test
     fun `modifier token has MODIFIER kind`() {
-        val t = Token.createModifier()
-        assertEquals(TokenKind.MODIFIER, t.kind)
+        assertEquals(TokenKind.MODIFIER, Token.createModifier().kind)
     }
 
     @Test
@@ -26,49 +27,63 @@ class TokenTest {
     }
 
     @Test
-    fun `addLayer appends to top`() {
-        val t = Token.createUnit()
-        val l1 = Layer.create(AssetPath.Bundled("a.png"))
-        val l2 = Layer.create(AssetPath.Bundled("b.png"))
-        t.addLayer(l1)
-        t.addLayer(l2)
-        assertEquals(listOf(l1, l2), t.layers.toList())
-    }
-
-    @Test
-    fun `removeLayer by id removes matching layer`() {
-        val t = Token.createUnit()
-        val l1 = Layer.create(AssetPath.Bundled("a.png"))
-        t.addLayer(l1)
-        t.removeLayer(l1.id)
-        assertEquals(0, t.layers.size)
-    }
-
-    @Test
-    fun `removeLayer with unknown id throws`() {
-        val t = Token.createUnit()
-        assertThrows(NoSuchElementException::class.java) {
-            t.removeLayer(java.util.UUID.randomUUID())
-        }
-    }
-
-    @Test
-    fun `reorderLayer moves layer to new index`() {
-        val t = Token.createUnit()
-        val l1 = Layer.create(AssetPath.Bundled("a.png"))
-        val l2 = Layer.create(AssetPath.Bundled("b.png"))
-        val l3 = Layer.create(AssetPath.Bundled("c.png"))
-        t.addLayer(l1); t.addLayer(l2); t.addLayer(l3)
-        t.reorderLayer(l1.id, 2)
-        assertEquals(listOf(l2, l3, l1), t.layers.toList())
-    }
-
-    @Test
-    fun `updateLayerProps replaces the layer's properties`() {
+    fun `addLayer to FRONT does not affect BACK`() {
         val t = Token.createUnit()
         val l = Layer.create(AssetPath.Bundled("a.png"))
-        t.addLayer(l)
-        t.updateLayerProps(l.id, LayerProperties(offsetX = 50))
-        assertEquals(50, t.layers.first().props.offsetX)
+        t.addLayer(TokenSide.FRONT, l)
+        assertEquals(listOf(l), t.layers(TokenSide.FRONT))
+        assertEquals(emptyList<Layer>(), t.layers(TokenSide.BACK))
+    }
+
+    @Test
+    fun `addLayer to BACK does not affect FRONT`() {
+        val t = Token.createUnit()
+        val l = Layer.create(AssetPath.Bundled("a.png"))
+        t.addLayer(TokenSide.BACK, l)
+        assertEquals(listOf(l), t.layers(TokenSide.BACK))
+        assertEquals(emptyList<Layer>(), t.layers(TokenSide.FRONT))
+    }
+
+    @Test
+    fun `removeLayer by id throws if not on that side`() {
+        val t = Token.createUnit()
+        val l = Layer.create(AssetPath.Bundled("a.png"))
+        t.addLayer(TokenSide.FRONT, l)
+        assertThrows(NoSuchElementException::class.java) {
+            t.removeLayer(TokenSide.BACK, l.id)
+        }
+        assertEquals(1, t.layers(TokenSide.FRONT).size)
+    }
+
+    @Test
+    fun `reorderLayer moves layer to new index on given side`() {
+        val t = Token.createUnit()
+        val a = Layer.create(AssetPath.Bundled("a.png"))
+        val b = Layer.create(AssetPath.Bundled("b.png"))
+        val c = Layer.create(AssetPath.Bundled("c.png"))
+        t.addLayer(TokenSide.FRONT, a); t.addLayer(TokenSide.FRONT, b); t.addLayer(TokenSide.FRONT, c)
+        t.reorderLayer(TokenSide.FRONT, a.id, 2)
+        assertEquals(listOf(b, c, a), t.layers(TokenSide.FRONT))
+    }
+
+    @Test
+    fun `updateLayerProps replaces props on the right side`() {
+        val t = Token.createUnit()
+        val l = Layer.create(AssetPath.Bundled("a.png"))
+        t.addLayer(TokenSide.BACK, l)
+        t.updateLayerProps(TokenSide.BACK, l.id, LayerProperties(offsetX = 7))
+        assertEquals(7, t.layers(TokenSide.BACK).first().props.offsetX)
+    }
+
+    @Test
+    fun `findLayerAnywhere returns side and layer`() {
+        val t = Token.createUnit()
+        val front = Layer.create(AssetPath.Bundled("f.png"))
+        val back = Layer.create(AssetPath.Bundled("b.png"))
+        t.addLayer(TokenSide.FRONT, front)
+        t.addLayer(TokenSide.BACK, back)
+        assertEquals(TokenSide.FRONT to front, t.findLayerAnywhere(front.id))
+        assertEquals(TokenSide.BACK to back, t.findLayerAnywhere(back.id))
+        assertNull(t.findLayerAnywhere(java.util.UUID.randomUUID()))
     }
 }

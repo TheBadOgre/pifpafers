@@ -22,9 +22,22 @@ class TokenBagTest {
         val t = Token.createUnit()
         bag.addToken(t)
         assertEquals(listOf(t), bag.tokens.toList())
-        assertEquals(1, events.size)
-        assertTrue(events.first() is ModelEvent.TokenAdded)
-        assertEquals(t.id, (events.first() as ModelEvent.TokenAdded).tokenId)
+        val added = events.single() as ModelEvent.TokenAdded
+        assertEquals(t.id, added.tokenId)
+    }
+
+    @Test
+    fun `addLayer fires LayerAdded with side`() {
+        val bag = TokenBag()
+        val t = Token.createUnit()
+        bag.addToken(t)
+        val events = mutableListOf<ModelEvent>()
+        bag.addListener { events += it }
+        val layer = Layer.create(AssetPath.Bundled("a.png"))
+        bag.addLayer(t.id, TokenSide.BACK, layer)
+        val ev = events.single() as ModelEvent.LayerAdded
+        assertEquals(TokenSide.BACK, ev.side)
+        assertEquals(layer.id, ev.layerId)
     }
 
     @Test

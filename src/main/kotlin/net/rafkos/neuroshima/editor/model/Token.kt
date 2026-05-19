@@ -8,33 +8,62 @@ class Token(
     val id: UUID,
     val kind: TokenKind,
 ) {
-    private val _layers: MutableList<Layer> = mutableListOf()
-    val layers: List<Layer> get() = _layers
+    private val _frontLayers: MutableList<Layer> = mutableListOf()
+    private val _backLayers: MutableList<Layer> = mutableListOf()
 
-    fun addLayer(layer: Layer, index: Int = _layers.size) {
-        _layers.add(index, layer)
+    fun layers(side: TokenSide): List<Layer> = sideList(side)
+
+    private fun sideList(side: TokenSide): MutableList<Layer> =
+        if (side == TokenSide.FRONT) _frontLayers else _backLayers
+
+    fun addLayer(side: TokenSide, layer: Layer, index: Int = sideList(side).size) {
+        sideList(side).add(index, layer)
     }
 
-    fun removeLayer(layerId: UUID) {
-        val idx = _layers.indexOfFirst { it.id == layerId }
-        if (idx < 0) throw NoSuchElementException("Layer $layerId not in token $id")
-        _layers.removeAt(idx)
+    fun removeLayer(side: TokenSide, layerId: UUID) {
+        val list = sideList(side)
+        val idx = list.indexOfFirst { it.id == layerId }
+        if (idx < 0) throw NoSuchElementException("Layer $layerId not in token $id ($side)")
+        list.removeAt(idx)
     }
 
-    fun reorderLayer(layerId: UUID, newIndex: Int) {
-        val cur = _layers.indexOfFirst { it.id == layerId }
-        if (cur < 0) throw NoSuchElementException("Layer $layerId not in token $id")
-        val layer = _layers.removeAt(cur)
-        _layers.add(newIndex.coerceIn(0, _layers.size), layer)
+    fun reorderLayer(side: TokenSide, layerId: UUID, newIndex: Int) {
+        val list = sideList(side)
+        val cur = list.indexOfFirst { it.id == layerId }
+        if (cur < 0) throw NoSuchElementException("Layer $layerId not in token $id ($side)")
+        val layer = list.removeAt(cur)
+        list.add(newIndex.coerceIn(0, list.size), layer)
     }
 
-    fun updateLayerProps(layerId: UUID, newProps: LayerProperties) {
-        val idx = _layers.indexOfFirst { it.id == layerId }
-        if (idx < 0) throw NoSuchElementException("Layer $layerId not in token $id")
-        _layers[idx] = _layers[idx].copy(props = newProps)
+    fun updateLayerProps(side: TokenSide, layerId: UUID, newProps: LayerProperties) {
+        val list = sideList(side)
+        val idx = list.indexOfFirst { it.id == layerId }
+        if (idx < 0) throw NoSuchElementException("Layer $layerId not in token $id ($side)")
+        list[idx] = list[idx].copy(props = newProps)
     }
 
-    fun findLayer(layerId: UUID): Layer? = _layers.firstOrNull { it.id == layerId }
+    fun findLayer(side: TokenSide, layerId: UUID): Layer? =
+        sideList(side).firstOrNull { it.id == layerId }
+
+    /** Backward-compat shim: returns FRONT side layers. Replaced by layers(side) in later tasks. */
+    @Deprecated("Use layers(side) instead", ReplaceWith("layers(TokenSide.FRONT)"))
+    val layers: List<Layer> get() = _frontLayers
+
+    /** Backward-compat shim: adds to FRONT side. Replaced in later tasks. */
+    @Deprecated("Use addLayer(side, layer, index) instead", ReplaceWith("addLayer(TokenSide.FRONT, layer, index)"))
+    fun addLayer(layer: Layer, index: Int = _frontLayers.size) = addLayer(TokenSide.FRONT, layer, index)
+
+    /** Backward-compat shim: searches FRONT side only. Replaced by findLayerAnywhere in later tasks. */
+    @Deprecated("Use findLayerAnywhere(layerId) instead", ReplaceWith("findLayerAnywhere(layerId)?.second"))
+    fun findLayer(layerId: UUID): Layer? = _frontLayers.firstOrNull { it.id == layerId }
+
+    /** Convenience lookup that searches both sides. Returns (side, layer) or null. */
+    fun findLayerAnywhere(layerId: UUID): Pair<TokenSide, Layer>? {
+        for (side in TokenSide.values()) {
+            sideList(side).firstOrNull { it.id == layerId }?.let { return side to it }
+        }
+        return null
+    }
 
     companion object {
         fun createUnit() = Token(UUID.randomUUID(), TokenKind.UNIT)
