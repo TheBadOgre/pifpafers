@@ -87,14 +87,14 @@ class TokensCollectionPanel(
             add(JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }, BorderLayout.EAST)
         }
         add(south, BorderLayout.SOUTH)
+        minimumSize = Dimension(south.preferredSize.width + 24, 80)
 
         slider.addChangeListener {
             ctx.viewState.setCollectionThumbSize(slider.value)
             if (!slider.valueIsAdjusting) {
                 val activeId = ctx.viewState.activeTokenId ?: return@addChangeListener
                 val size = ctx.viewState.collectionThumbSize
-                val token = ctx.bag.findToken(activeId)
-                val displaySize = if (token?.kind == TokenKind.MODIFIER) (size * 0.55).toInt().coerceAtLeast(24) else size
+                val displaySize = size
                 updateSnapshotSubscription(activeId, displaySize)
             }
         }
@@ -122,7 +122,7 @@ class TokensCollectionPanel(
         val activeId = ctx.viewState.activeTokenId
         var activeDisplaySize = size
         for (token in ctx.bag.tokens) {
-            val displaySize = if (token.kind == TokenKind.MODIFIER) (size * 0.55).toInt().coerceAtLeast(24) else size
+            val displaySize = size
             val isActive = token.id == activeId
             if (isActive) activeDisplaySize = displaySize
             val img = thumbnails.tokenThumbnail(token, displaySize)
