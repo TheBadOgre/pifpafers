@@ -8,6 +8,7 @@ import net.rafkos.neuroshima.editor.ui.panels.LayerPropertiesPanel
 import net.rafkos.neuroshima.editor.ui.panels.LayersPanel
 import net.rafkos.neuroshima.editor.ui.panels.ToolPalettePanel
 import net.rafkos.neuroshima.editor.ui.panels.TokensCollectionPanel
+import net.rafkos.neuroshima.editor.ui.icon.Icons
 import net.rafkos.neuroshima.editor.ui.tools.ToolController
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -17,6 +18,7 @@ import java.awt.event.WindowEvent
 import javax.swing.AbstractAction
 import javax.swing.JCheckBox
 import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.JSplitPane
@@ -38,16 +40,54 @@ class MainFrame(val ctx: AppContext) : JFrame() {
     init { ctx.canvasMapper = canvasComponent.mapper }
 
     val canvasPanel: JPanel = JPanel(BorderLayout()).apply {
-        add(canvasComponent, BorderLayout.CENTER)
-        val toggle = JCheckBox(ctx.locale.t("button.show.overlay")).apply {
+        val overlayHost = JPanel(BorderLayout())
+        overlayHost.add(canvasComponent, BorderLayout.CENTER)
+
+        // Top-left side label.
+        val sideLabel = JLabel().apply {
+            border = javax.swing.BorderFactory.createEmptyBorder(4, 8, 4, 8)
+            isOpaque = false
+        }
+        fun refreshSideLabel() {
+            val side = ctx.viewState.activeSide
+            val sideKey = if (side == net.rafkos.neuroshima.editor.model.TokenSide.FRONT) "label.side.front" else "label.side.back"
+            sideLabel.text = "${ctx.locale.t("label.side.prefix")}: ${ctx.locale.t(sideKey)}"
+        }
+        refreshSideLabel()
+
+        val topLeftHolder = JPanel(BorderLayout()).apply {
+            isOpaque = false
+            add(sideLabel, BorderLayout.WEST)
+        }
+
+        overlayHost.add(topLeftHolder, BorderLayout.NORTH)
+
+        add(overlayHost, BorderLayout.CENTER)
+
+        val south = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2))
+        val overlayToggle = JCheckBox(ctx.locale.t("button.show.overlay")).apply {
             isSelected = ctx.viewState.showOverlay
             addActionListener { ctx.viewState.setShowOverlay(isSelected) }
         }
-        add(toggle, BorderLayout.SOUTH)
+        val flipBtn = javax.swing.JButton(ctx.locale.t("button.flip.side")).apply {
+            addActionListener {
+                val cur = ctx.viewState.activeSide
+                val next = if (cur == net.rafkos.neuroshima.editor.model.TokenSide.FRONT)
+                    net.rafkos.neuroshima.editor.model.TokenSide.BACK
+                else net.rafkos.neuroshima.editor.model.TokenSide.FRONT
+                ctx.viewState.setActiveSide(next)
+            }
+        }
+        south.add(overlayToggle)
+        south.add(flipBtn)
+        add(south, BorderLayout.SOUTH)
+
+        ctx.viewState.addListener { refreshSideLabel() }
     }
 
     init {
         title = ctx.locale.t("app.title")
+        iconImages = Icons.appIcon
         defaultCloseOperation = WindowConstants.DO_NOTHING_ON_CLOSE
         layout = BorderLayout()
 
@@ -117,6 +157,7 @@ class MainFrame(val ctx: AppContext) : JFrame() {
         })
 
         preferredSize = Dimension(1280, 800)
+        minimumSize = Dimension(600, 600)
         pack()
         setLocationRelativeTo(null)
 
