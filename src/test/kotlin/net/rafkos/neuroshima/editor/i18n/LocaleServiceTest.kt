@@ -9,19 +9,19 @@ class LocaleServiceTest {
     @Test
     fun `english locale loads default bundle`() {
         val svc = LocaleService(Locale.ENGLISH)
-        assertEquals("Neuroshima Hex Army Editor", svc.t("app.title"))
+        assertEquals("Pifpafers - Neuroshima HEX Army Painter", svc.t("app.title"))
     }
 
     @Test
     fun `polish locale loads pl bundle`() {
         val svc = LocaleService(Locale.of("pl"))
-        assertEquals("Edytor armii Neuroshima Hex", svc.t("app.title"))
+        assertEquals("Pifpafers - Malarz Armii do Neuroshima Hex", svc.t("app.title"))
     }
 
     @Test
     fun `unknown locale falls back to english`() {
         val svc = LocaleService(Locale.of("xx"))
-        assertEquals("Neuroshima Hex Army Editor", svc.t("app.title"))
+        assertEquals("Pifpafers - Neuroshima HEX Army Painter", svc.t("app.title"))
     }
 
     @Test

@@ -2,12 +2,11 @@ package net.rafkos.neuroshima.editor.ui.tools
 
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.ColorizeCommand
-import java.awt.Color
+import net.rafkos.neuroshima.editor.model.LayerProperties
+import net.rafkos.neuroshima.editor.ui.dialogs.ColorizeDialog
 import java.awt.Component
-import java.awt.Container
 import java.awt.event.MouseEvent
-import javax.swing.JColorChooser
-import javax.swing.JTabbedPane
+import java.util.UUID
 
 class ColorizeTool : Tool {
     override fun onMousePressed(ctx: AppContext, e: MouseEvent) {
@@ -21,35 +20,59 @@ class ColorizeTool : Tool {
             val selected = ctx.viewState.selectedLayers
             if (selected.isEmpty()) return
 
-            val chooser = JColorChooser(Color.WHITE)
-            val hsvIdx = chooser.chooserPanels.indexOfFirst { panel ->
-                "HSV" in panel.displayName.uppercase() || "HSB" in panel.displayName.uppercase()
+            val originalProps: Map<UUID, LayerProperties> = selected
+                .mapNotNull { id -> token.findLayer(id)?.let { id to it.props } }
+                .toMap()
+            if (originalProps.isEmpty()) return
+
+            // Init from existing colorize state if present, otherwise neutral (no effect).
+            val first = originalProps.values.first()
+            val initHue: Float
+            val initSat: Float
+            val initBright: Float
+            if (first.colorize) {
+                initHue = first.hue
+                initSat = (first.saturation / 2f).coerceIn(0f, 1f)
+                initBright = first.brightness
+            } else {
+                initHue = 0f; initSat = 0f; initBright = 1f
             }
-            if (hsvIdx >= 0) findTabbedPane(chooser)?.selectedIndex = hsvIdx
 
-            var picked: Color? = null
-            val dialog = JColorChooser.createDialog(
-                dialogParent, ctx.locale.t("tool.colorize"), true, chooser,
-                { picked = chooser.color }, null,
+            fun propsFor(orig: LayerProperties, h: Float, s: Float, b: Float) = orig.copy(
+                colorize = true,
+                hue = h,
+                saturation = s * 2f,
+                brightness = b,
             )
-            dialog.isVisible = true
-            val color = picked ?: return
 
-            val hsb = Color.RGBtoHSB(color.red, color.green, color.blue, FloatArray(3))
-            val changes = selected.mapNotNull { id ->
-                val layer = token.findLayer(id) ?: return@mapNotNull null
-                val newProps = layer.props.copy(colorize = true, hue = hsb[0], saturation = 2f, brightness = 1f)
-                ColorizeCommand.LayerChange(id, layer.props, newProps)
+            fun applyPreview(h: Float, s: Float, b: Float) {
+                for ((id, orig) in originalProps) ctx.bag.updateLayerProps(tokenId, id, propsFor(orig, h, s, b))
+            }
+
+            fun revertPreview() {
+                for ((id, orig) in originalProps) ctx.bag.updateLayerProps(tokenId, id, orig)
+            }
+
+            ctx.viewState.setSuppressSelectionTint(true)
+            val dlg = try {
+                ColorizeDialog.show(dialogParent, ctx.locale, initHue, initSat, initBright) { h, s, b ->
+                    applyPreview(h, s, b)
+                }
+            } finally {
+                ctx.viewState.setSuppressSelectionTint(false)
+            }
+
+            if (!dlg.accepted) {
+                revertPreview()
+                return
+            }
+
+            val fh = dlg.hue; val fs = dlg.saturation; val fb = dlg.brightness
+            revertPreview()
+            val changes = originalProps.map { (id, orig) ->
+                ColorizeCommand.LayerChange(id, orig, propsFor(orig, fh, fs, fb))
             }
             if (changes.isNotEmpty()) ctx.history.execute(ctx.bag, ColorizeCommand(tokenId, changes))
-        }
-
-        private fun findTabbedPane(c: Container): JTabbedPane? {
-            for (child in c.components) {
-                if (child is JTabbedPane) return child
-                if (child is Container) findTabbedPane(child)?.let { return it }
-            }
-            return null
         }
     }
 }

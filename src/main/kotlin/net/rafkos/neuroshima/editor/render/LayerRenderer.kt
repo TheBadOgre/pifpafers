@@ -1,6 +1,7 @@
 package net.rafkos.neuroshima.editor.render
 
 import net.rafkos.neuroshima.editor.model.LayerProperties
+import net.rafkos.neuroshima.editor.render.color.ColorizePipeline
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.awt.image.RescaleOp
@@ -14,15 +15,16 @@ object LayerRenderer {
 
         var img = ensureArgb(source)
         if (props.colorize) {
-            img = applyColorize(img, props.hue, props.saturation)
+            // Colorize pipeline handles brightness perceptually in OKLab; skip the post-step.
+            img = ColorizePipeline.apply(img, props.hue, props.saturation, props.brightness)
         } else {
             if (props.hue != 0f) img = hueShift(img, props.hue)
             if (props.saturation != 1f) img = applySaturationPerPixel(img, props.saturation)
-        }
-        if (props.brightness != 1f) {
-            val scales = floatArrayOf(props.brightness, props.brightness, props.brightness, 1f)
-            val offsets = floatArrayOf(0f, 0f, 0f, 0f)
-            img = RescaleOp(scales, offsets, null).filter(img, null)
+            if (props.brightness != 1f) {
+                val scales = floatArrayOf(props.brightness, props.brightness, props.brightness, 1f)
+                val offsets = floatArrayOf(0f, 0f, 0f, 0f)
+                img = RescaleOp(scales, offsets, null).filter(img, null)
+            }
         }
         if (props.opacity != 1f) {
             val scales = floatArrayOf(1f, 1f, 1f, props.opacity)
@@ -53,24 +55,6 @@ object LayerRenderer {
             Color.RGBtoHSB(r, g, b, hsb)
             val newSat = (hsb[1] * saturation).coerceIn(0f, 1f)
             val rgb = Color.HSBtoRGB(hsb[0], newSat, hsb[2]) and 0x00ffffff
-            out.setRGB(x, y, (a shl 24) or rgb)
-        }
-        return out
-    }
-
-    private fun applyColorize(src: BufferedImage, targetHue: Float, satMult: Float): BufferedImage {
-        val out = BufferedImage(src.width, src.height, BufferedImage.TYPE_INT_ARGB)
-        val hsb = FloatArray(3)
-        for (y in 0 until src.height) for (x in 0 until src.width) {
-            val argb = src.getRGB(x, y)
-            val a = (argb ushr 24) and 0xff
-            if (a == 0) continue
-            val r = (argb ushr 16) and 0xff
-            val g = (argb ushr 8) and 0xff
-            val b = argb and 0xff
-            Color.RGBtoHSB(r, g, b, hsb)
-            val newSat = (hsb[1] * satMult).coerceIn(0f, 1f)
-            val rgb = Color.HSBtoRGB(targetHue, newSat, hsb[2]) and 0x00ffffff
             out.setRGB(x, y, (a shl 24) or rgb)
         }
         return out

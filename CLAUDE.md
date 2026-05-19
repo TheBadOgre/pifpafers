@@ -53,8 +53,10 @@ persistence/ JsonBagStore (.box save/load, atomic write), BagOpener, BagDto, Mis
 assets/      AssetLibrary (bundled+user merged tree), ImageCache (LinkedHashMap LRU + SoftReference, bound 256),
              ImagePreloader, AssetTreeNode
 command/     Command interface, CommandHistory, concrete commands (see list below)
-render/      LayerRenderer (RescaleOp + per-pixel HSB), AffineBuilder, TokenRenderer (fit-scale canvas → sizePx),
+render/      LayerRenderer (RescaleOp + per-pixel HSB for non-colorize; delegates colorize),
+             AffineBuilder, TokenRenderer (fit-scale canvas → sizePx),
              ThumbnailRenderer (TokenKey | LayerKey cache), ProcessedLayerCache (bound 256),
+             render/color/    OkLab (sRGB↔linear↔OKLab/OKLCh), ColorizePipeline (perceptual recolor)
              render/overlay/  OverlayPainter etc.
 ui/          MainFrame, MenuBuilder, StatusBar (dirty marker `*` lives here, not in title), ViewState, WrapLayout
 ui/canvas/   TokenCanvasPanel (paint pipeline + composite cache), CanvasMapper (screen↔logical)
@@ -141,13 +143,13 @@ Concrete commands on disk:
 - Zoom 0.25×–8× (wheel zoom-to-cursor, step ≈ 1.1×). Middle-mouse pan. Zoom/pan are **view state** — not modeled, not undoable, not saved.
 - **`TokenCanvasPanel.paintComponent` MUST use `graphics.create()` + `try/finally g2.dispose()`** — otherwise transforms/clips leak across sibling Swing panels. Regression-prone.
 - `TokenCanvasPanel` keeps a `LOGICAL_CANVAS_W × LOGICAL_CANVAS_H` **composite cache** per active token, invalidated only by `ModelEvent`s touching the active token (`LayerAdded`/`Removed`/`Reordered`/`PropsChanged`). Zoom, pan, selection change, overlay toggle do **not** invalidate — they only `repaint()`.
-- `LayerRenderer.applyPixelOps`: identity short-circuit; `RescaleOp` for opacity/brightness; **per-pixel HSB loop** (`Color.RGBtoHSB`/`HSBtoRGB`) for saturation, hue, and `colorize` mode. (Spec-level intent was to vectorize via `LookupOp`/`BandCombineOp` — not yet implemented; saturation in particular doesn't map cleanly to `BandCombineOp` for ARGB sources.)
+- `LayerRenderer.applyPixelOps`: identity short-circuit; `RescaleOp` for opacity (and for non-colorize brightness); **per-pixel HSB loop** (`Color.RGBtoHSB`/`HSBtoRGB`) for non-colorize saturation/hue. `colorize` mode is delegated to `render/color/ColorizePipeline` — a perceptual recolor in OKLab/OKLCh: sRGB→linear (8-bit LUT) → OKLab → scale L by `brightness`, replace H, derive C via luminance-bell × soft-knee (tanh) × source-chroma material modulation → mild S-curve on L → linear → sRGB. When `colorize=true` the per-pixel pipeline owns brightness (perceptual-L scale, not sRGB RGB multiply), so `LayerRenderer` skips the post-pipeline brightness `RescaleOp`. Slider semantics: `hue` ∈ 0..1, `saturation` is the colorize amount (tool maps chooser HSB saturation × 2 → "full" recolor at chooser sat=1), `brightness` is the perceptual-L multiplier (chooser HSB brightness passed through directly). (Vectorizing the non-colorize HSB loop via `LookupOp`/`BandCombineOp` remains aspirational.)
 - `ProcessedLayerCache` keyed by `(assetPath, props.hash())`, bound 256.
 - `TokenRenderer.render(token, sizePx)` fit-scales `LOGICAL_CANVAS_W × LOGICAL_CANVAS_H` → `sizePx × sizePx` via uniform `g.scale(fit)` so thumbnails show the whole composition correctly regardless of layer offsets.
 - `ThumbnailRenderer` has separate `TokenKey(tokenId, sizePx)` and `LayerKey(tokenId, layerId, sizePx)` cache entries (sealed `Key`); `layerThumbnail` builds a transient one-layer `Token` internally — its synthetic id is never used as a cache key. `invalidateToken` drops both.
 - `PreviewService` (singleton `ScheduledExecutorService`, 300 ms debounce, per-key `AtomicLong` version counter — stale results discarded) renders an HQ snapshot only for the **selected** token tile; `SwingUtilities.invokeLater` swaps the `ImageIcon` on EDT.
 - All image decoding off-EDT. `ImageCache` = `LinkedHashMap<AssetPath, SoftReference<BufferedImage>>`, LRU bound 256.
-- **Selection feedback**: blue-hue tint overlay (`tintBlue` → pure `0x0055ff`, alpha-preserving) composited at `AlphaComposite.SRC_OVER, 0.45f` over selected layers. Not a dashed marker (legacy design — replaced).
+- **Selection feedback**: blue-hue tint overlay (`tintBlue` → pure `0x0055ff`, alpha-preserving) composited at `AlphaComposite.SRC_OVER, 0.45f` over selected layers. Suppressed when `viewState.suppressSelectionTint == true` (e.g., while the colorize dialog is open so the live recolor preview is visible without the blue tint clobbering it). Not a dashed marker (legacy design — replaced).
 
 ## UI Layout
 
@@ -169,6 +171,7 @@ Three independent thumbnail size sliders (tokens / layers / assets), range **48�
 - **Layer removal**: confirmation dialog also present (`LayersPanel`). Undoable via `RemoveLayerCommand`. *(Note: original design called for no-confirm on layers since undo covers it — code currently confirms. If you change this, update here.)*
 - **Rename** = command (undoable), not a direct mutation.
 - **Save-before-close** dialog (`SaveBeforeCloseDialog`) on window-close and on opening another bag when current is dirty.
+- **Colorize dialog** (`ColorizeTool`) previews live: each `JColorChooser` change directly mutates selected layers' props via `bag.updateLayerProps` (bypasses history). The chooser is locked to its HSL panel only (all other panels stripped at construction). Selection blue tint is suppressed while the dialog is open. OK reverts the previewed state, then pushes a single `ColorizeCommand` (original → final) onto history; Cancel/close reverts silently.
 
 ## i18n
 
@@ -187,7 +190,7 @@ Three independent thumbnail size sliders (tokens / layers / assets), range **48�
   - `persistence/` — `JsonBagStore` round-trip, unknown-`schemaVersion` rejection, `BagOpener` missing-asset enumeration.
   - `command/` — every command's do/undo invariants, `CommandHistory` merge window, save/load history-clear.
   - `assets/` — `AssetLibrary` bundled-wins conflict rule, `ImageCache` LRU eviction + soft-reference behaviour, `ImagePreloader`.
-  - `render/` — `LayerRenderer` correctness vs a legacy reference (`LayerRendererLegacy`) with ≤2/255 per-channel delta on a fixture, `AffineBuilder`, `ThumbnailRenderer` cache-key isolation, `TokenRenderer` fit-scale, `ProcessedLayerCache`.
+  - `render/` — `LayerRenderer` non-colorize paths vs a legacy reference (`LayerRendererLegacy`) with ≤2/255 per-channel delta on a fixture; `render/color/` covers `OkLab` round-trip and `ColorizePipeline` invariants (transparent passthrough, luminance preservation, hue targeting, highlight attenuation); plus `AffineBuilder`, `ThumbnailRenderer` cache-key isolation, `TokenRenderer` fit-scale, `ProcessedLayerCache`.
   - `ui/` — `ViewState`, `CanvasMapper` round-trip `screenToLogical(logicalToScreen(p)) == p`, `SelectTool` alpha-aware hit test (threshold = 8/255), `PreviewService` debounce + version-counter staleness drop.
   - `i18n/`, `prefs/` — service round-trip, key resolution.
 - **Integration**: `integration/RoundTripRenderTest` renders a sample bag and compares against a committed reference PNG (small per-pixel delta tolerance). **Regenerate the reference PNG when intentional render changes land.**

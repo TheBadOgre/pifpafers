@@ -28,6 +28,9 @@ class ViewState {
     var assetsThumbSize: Int = 64
         private set
 
+    var suppressSelectionTint: Boolean = false
+        private set
+
     private val listeners: MutableList<() -> Unit> = mutableListOf()
 
     fun addListener(l: () -> Unit) { listeners += l }
@@ -99,6 +102,12 @@ class ViewState {
         val clamped = px.coerceIn(48, 192)
         if (clamped == assetsThumbSize) return
         assetsThumbSize = clamped
+        fire()
+    }
+
+    fun setSuppressSelectionTint(b: Boolean) {
+        if (suppressSelectionTint == b) return
+        suppressSelectionTint = b
         fire()
     }
 }

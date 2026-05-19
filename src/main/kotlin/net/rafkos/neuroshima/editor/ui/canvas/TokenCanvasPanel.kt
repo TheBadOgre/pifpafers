@@ -162,6 +162,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
     }
 
     private fun ensureSelection(tokenId: UUID): BufferedImage? {
+        if (ctx.viewState.suppressSelectionTint) return null
         val selected = ctx.viewState.selectedLayers
         if (selected.isEmpty()) { selectionValid = true; return null }
         val existing = selectionBuf
