@@ -1,12 +1,16 @@
 package net.rafkos.neuroshima.editor.ui
 
 import java.util.UUID
+import net.rafkos.neuroshima.editor.model.TokenSide
 
 enum class ToolId { SELECT, MOVE, ROTATE, SCALE, OPACITY, COLORIZE }
 
 class ViewState {
 
     var activeTokenId: UUID? = null
+        private set
+
+    var activeSide: TokenSide = TokenSide.FRONT
         private set
 
     private val _selectedLayers: MutableSet<UUID> = linkedSetOf()
@@ -40,6 +44,14 @@ class ViewState {
     fun setActiveToken(id: UUID?) {
         if (activeTokenId == id) return
         activeTokenId = id
+        activeSide = TokenSide.FRONT
+        _selectedLayers.clear()
+        fire()
+    }
+
+    fun setActiveSide(side: TokenSide) {
+        if (activeSide == side) return
+        activeSide = side
         _selectedLayers.clear()
         fire()
     }

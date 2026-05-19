@@ -1,6 +1,7 @@
 package net.rafkos.neuroshima.editor.ui
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
@@ -65,5 +66,32 @@ class ViewStateTest {
         assertEquals(0.25f, vs.zoom)
         vs.setZoom(2f)
         assertEquals(2f, vs.zoom)
+    }
+
+    @Test
+    fun `activeSide defaults to FRONT`() {
+        val vs = ViewState()
+        assertEquals(net.rafkos.neuroshima.editor.model.TokenSide.FRONT, vs.activeSide)
+    }
+
+    @Test
+    fun `setActiveSide clears selection and fires`() {
+        val vs = ViewState()
+        vs.selectLayer(UUID.randomUUID())
+        var fired = 0
+        vs.addListener { fired++ }
+        vs.setActiveSide(net.rafkos.neuroshima.editor.model.TokenSide.BACK)
+        assertEquals(net.rafkos.neuroshima.editor.model.TokenSide.BACK, vs.activeSide)
+        assertTrue(vs.selectedLayers.isEmpty())
+        assertEquals(1, fired)
+    }
+
+    @Test
+    fun `setActiveToken resets activeSide to FRONT`() {
+        val vs = ViewState()
+        vs.setActiveSide(net.rafkos.neuroshima.editor.model.TokenSide.BACK)
+        val tokenId = UUID.randomUUID()
+        vs.setActiveToken(tokenId)
+        assertEquals(net.rafkos.neuroshima.editor.model.TokenSide.FRONT, vs.activeSide)
     }
 }
