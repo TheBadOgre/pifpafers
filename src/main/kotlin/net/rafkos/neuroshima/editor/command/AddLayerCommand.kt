@@ -4,10 +4,12 @@ import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.LayerProperties
 import net.rafkos.neuroshima.editor.model.TokenBag
+import net.rafkos.neuroshima.editor.model.TokenSide
 import java.util.UUID
 
 class AddLayerCommand(
     private val tokenId: UUID,
+    private val side: TokenSide,
     private val assetPath: AssetPath,
     private val props: LayerProperties = LayerProperties(),
     private val atIndex: Int? = null,
@@ -19,12 +21,12 @@ class AddLayerCommand(
     override fun execute(bag: TokenBag) {
         val id = layerId ?: UUID.randomUUID().also { layerId = it }
         val layer = Layer(id = id, assetPath = assetPath, props = props)
-        bag.addLayer(tokenId, layer, atIndex)
+        bag.addLayer(tokenId, side, layer, atIndex)
     }
 
     override fun undo(bag: TokenBag) {
         val id = layerId ?: return
-        bag.removeLayer(tokenId, id)
+        bag.removeLayer(tokenId, side, id)
     }
 
     override fun mergeWith(next: Command): Command? = null
