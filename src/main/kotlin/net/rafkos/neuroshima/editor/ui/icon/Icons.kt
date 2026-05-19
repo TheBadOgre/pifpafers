@@ -54,6 +54,13 @@ object Icons {
         return out
     }
 
+    val appIcon: List<Image> = run {
+        val stream = Icons::class.java.classLoader.getResourceAsStream("icons/app_icon.png")
+        val src = stream?.let { ImageIO.read(it) }
+        if (src != null) listOf(16, 32, 48, 64, 128, 256).map { sz -> downscale(src, sz, sz) }
+        else emptyList()
+    }
+
     val toolSelect     = load("tool_select")
     val toolMove       = load("tool_move")
     val toolRotate     = load("tool_rotate")

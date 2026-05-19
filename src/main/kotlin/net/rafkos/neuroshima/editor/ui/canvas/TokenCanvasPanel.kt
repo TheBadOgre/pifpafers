@@ -14,6 +14,7 @@ import net.rafkos.neuroshima.editor.render.overlay.OverlayPainter
 import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Dimension
+import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.RenderingHints
@@ -234,6 +235,23 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         } finally {
             g2.dispose()
         }
+        val gLabel = (graphics.create() as Graphics2D)
+        try {
+            paintSideLabel(gLabel)
+        } finally {
+            gLabel.dispose()
+        }
+    }
+
+    private fun paintSideLabel(g2: Graphics2D) {
+        val side = ctx.viewState.activeSide
+        val sideKey = if (side == TokenSide.FRONT) "label.side.front" else "label.side.back"
+        val text = ctx.locale.t(sideKey)
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+        g2.font = Font(Font.SANS_SERIF, Font.BOLD, 20)
+        g2.color = Color.WHITE
+        val fm = g2.fontMetrics
+        g2.drawString(text, 12, 12 + fm.ascent)
     }
 
     private fun paintCanvas(g2: Graphics2D) {

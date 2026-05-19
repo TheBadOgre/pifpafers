@@ -2,19 +2,16 @@ package net.rafkos.neuroshima.editor.render
 
 import net.rafkos.neuroshima.editor.assets.ImageCache
 import net.rafkos.neuroshima.editor.model.Token
+import net.rafkos.neuroshima.editor.model.TokenKind
 import net.rafkos.neuroshima.editor.model.TokenSide
-import java.awt.AlphaComposite
-import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 
 const val LOGICAL_CANVAS_W: Int = 1044
 const val LOGICAL_CANVAS_H: Int = 902
 
-private val OUTLINE_COLOR: Color = Color(64, 64, 64)
-private const val OUTLINE_ALPHA: Float = 0.8f
-private const val DUAL_SIDE_SCALE: Double = 0.8
-private const val ALPHA_EDGE_THRESHOLD: Int = 16
+private const val DUAL_SIDE_SCALE_UNIT: Double = 0.8
+private const val DUAL_SIDE_SCALE_MODIFIER: Double = 0.55
 
 class TokenRenderer(
     private val imageCache: ImageCache,
@@ -62,7 +59,8 @@ class TokenRenderer(
     }
 
     fun renderDual(token: Token, sizePx: Int): BufferedImage {
-        val innerSize = (sizePx * DUAL_SIDE_SCALE).toInt().coerceAtLeast(1)
+        val scale = if (token.kind == TokenKind.MODIFIER) DUAL_SIDE_SCALE_MODIFIER else DUAL_SIDE_SCALE_UNIT
+        val innerSize = (sizePx * scale).toInt().coerceAtLeast(1)
         val offset = sizePx - innerSize
 
         val front = render(token, TokenSide.FRONT, innerSize)
@@ -73,8 +71,6 @@ class TokenRenderer(
         try {
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
             g.drawImage(back, offset, offset, null)
-            val outline = buildAlphaEdgeOutline(front)
-            g.drawImage(outline, 0, 0, null)
             g.drawImage(front, 0, 0, null)
         } finally {
             g.dispose()
@@ -82,37 +78,4 @@ class TokenRenderer(
         return out
     }
 
-    private fun buildAlphaEdgeOutline(src: BufferedImage): BufferedImage {
-        val w = src.width
-        val h = src.height
-        val edgeAlpha = (OUTLINE_ALPHA * 255).toInt().coerceIn(0, 255)
-        val outARGB = (edgeAlpha shl 24) or
-            (OUTLINE_COLOR.red shl 16) or (OUTLINE_COLOR.green shl 8) or OUTLINE_COLOR.blue
-        val alphaIn = IntArray(w * h)
-        for (y in 0 until h) for (x in 0 until w) {
-            alphaIn[y * w + x] = (src.getRGB(x, y) ushr 24) and 0xff
-        }
-        val out = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
-        for (y in 0 until h) for (x in 0 until w) {
-            val a = alphaIn[y * w + x]
-            if (a >= ALPHA_EDGE_THRESHOLD) continue
-            var hasInsideNeighbor = false
-            outer@ for (dy in -1..1) {
-                val ny = y + dy
-                if (ny !in 0 until h) continue
-                for (dx in -1..1) {
-                    if (dx == 0 && dy == 0) continue
-                    val nx = x + dx
-                    if (nx !in 0 until w) continue
-                    if (alphaIn[ny * w + nx] >= ALPHA_EDGE_THRESHOLD) {
-                        hasInsideNeighbor = true
-                        break@outer
-                    }
-                }
-            }
-            if (hasInsideNeighbor) out.setRGB(x, y, outARGB)
-        }
-        @Suppress("UNUSED_VARIABLE") val _composite = AlphaComposite.SrcOver
-        return out
-    }
 }

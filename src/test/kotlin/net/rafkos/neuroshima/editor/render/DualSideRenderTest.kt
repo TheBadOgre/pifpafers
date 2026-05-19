@@ -56,30 +56,4 @@ class DualSideRenderTest {
         assertTrue((br and 0xff) > 200) { "right side should be blue-ish (back side, outside front overlay), got 0x${Integer.toHexString(br)}" }
     }
 
-    @Test
-    fun `renderDual draws dark grey outline pixels around front shape`() {
-        val cache = ImageCache(8)
-        val front = AssetPath.Bundled("front.png")
-        cache.put(front, solid(Color.RED))
-        val token = Token.createUnit().apply { addLayer(TokenSide.FRONT, Layer.create(front)) }
-        val renderer = TokenRenderer(cache, ProcessedLayerCache(8))
-        val img = renderer.renderDual(token, sizePx = 200)
-        var found = false
-        for (y in 0 until 160) {
-            for (x in 0 until 160) {
-                val argb = img.getRGB(x, y)
-                val a = (argb ushr 24) and 0xff
-                if (a == 0) continue
-                val r = (argb ushr 16) and 0xff
-                val g = (argb ushr 8) and 0xff
-                val b = argb and 0xff
-                if (r < 120 && g < 120 && b < 120 && kotlin.math.abs(r - g) < 16 && kotlin.math.abs(g - b) < 16
-                    && a in 150..230) {
-                    found = true; break
-                }
-            }
-            if (found) break
-        }
-        assertTrue(found, "expected at least one dark-grey outline pixel inside the front quadrant")
-    }
 }

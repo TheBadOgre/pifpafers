@@ -44,12 +44,15 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
     private val previewGrid = JPanel(WrapLayout(FlowLayout.LEFT, 4, 4))
     private val tree = JTree(DefaultTreeModel(DefaultMutableTreeNode(FolderUserObject(AssetTreeNode("")))))
     private val slider = JSlider(48, 192, ctx.viewState.assetsThumbSize)
+    private val previewScroll = JScrollPane(previewGrid).apply {
+        verticalScrollBar.unitIncrement = ctx.viewState.assetsThumbSize / 2
+    }
 
     init {
         layout = BorderLayout()
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.assets"))
         val treeScroll = JScrollPane(tree)
-        val split = object : JSplitPane(HORIZONTAL_SPLIT, treeScroll, JScrollPane(previewGrid)) {
+        val split = object : JSplitPane(HORIZONTAL_SPLIT, treeScroll, previewScroll) {
             override fun addNotify() {
                 super.addNotify()
                 SwingUtilities.invokeLater { setDividerLocation(0.25) }
@@ -76,7 +79,11 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
         south.add(JPanel(FlowLayout(FlowLayout.TRAILING, 4, 2)).apply { add(slider) }, BorderLayout.EAST)
         add(south, BorderLayout.SOUTH)
 
-        slider.addChangeListener { ctx.viewState.setAssetsThumbSize(slider.value); refreshPreview() }
+        slider.addChangeListener {
+            ctx.viewState.setAssetsThumbSize(slider.value)
+            previewScroll.verticalScrollBar.unitIncrement = slider.value / 2
+            refreshPreview()
+        }
         tree.addTreeSelectionListener(object : TreeSelectionListener {
             override fun valueChanged(e: TreeSelectionEvent?) { refreshPreview() }
         })

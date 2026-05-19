@@ -18,7 +18,7 @@ import java.awt.event.WindowEvent
 import javax.swing.AbstractAction
 import javax.swing.JCheckBox
 import javax.swing.JComponent
-import javax.swing.JLabel
+
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.JSplitPane
@@ -43,25 +43,6 @@ class MainFrame(val ctx: AppContext) : JFrame() {
         val overlayHost = JPanel(BorderLayout())
         overlayHost.add(canvasComponent, BorderLayout.CENTER)
 
-        // Top-left side label.
-        val sideLabel = JLabel().apply {
-            border = javax.swing.BorderFactory.createEmptyBorder(4, 8, 4, 8)
-            isOpaque = false
-        }
-        fun refreshSideLabel() {
-            val side = ctx.viewState.activeSide
-            val sideKey = if (side == net.rafkos.neuroshima.editor.model.TokenSide.FRONT) "label.side.front" else "label.side.back"
-            sideLabel.text = "${ctx.locale.t("label.side.prefix")}: ${ctx.locale.t(sideKey)}"
-        }
-        refreshSideLabel()
-
-        val topLeftHolder = JPanel(BorderLayout()).apply {
-            isOpaque = false
-            add(sideLabel, BorderLayout.WEST)
-        }
-
-        overlayHost.add(topLeftHolder, BorderLayout.NORTH)
-
         add(overlayHost, BorderLayout.CENTER)
 
         val south = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2))
@@ -82,7 +63,6 @@ class MainFrame(val ctx: AppContext) : JFrame() {
         south.add(flipBtn)
         add(south, BorderLayout.SOUTH)
 
-        ctx.viewState.addListener { refreshSideLabel() }
     }
 
     init {

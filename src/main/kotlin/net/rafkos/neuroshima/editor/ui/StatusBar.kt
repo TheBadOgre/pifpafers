@@ -14,6 +14,7 @@ class StatusBar(private val ctx: AppContext) : JPanel(FlowLayout(FlowLayout.LEFT
     init {
         add(fileLabel); add(countLabel); add(savedLabel)
         ctx.addBagListener { refresh() }
+        ctx.addBagReplacedListener { refresh() }
         refresh()
     }
 

@@ -44,11 +44,14 @@ class AppContext(
     val previewService: PreviewService = PreviewService(bag, tokenRenderer)
 
     private val persistentBagListeners: MutableList<(ModelEvent) -> Unit> = mutableListOf()
+    private val bagReplacedListeners: MutableList<() -> Unit> = mutableListOf()
 
     fun addBagListener(l: (ModelEvent) -> Unit) {
         bag.addListener(l)
         persistentBagListeners += l
     }
+
+    fun addBagReplacedListener(l: () -> Unit) { bagReplacedListeners += l }
 
     init {
         val prefs = prefsStore.load()
@@ -69,6 +72,7 @@ class AppContext(
         history.clear()
         viewState.setActiveToken(bag.tokens.firstOrNull()?.id)
         installInvalidationListener(bag)
+        bagReplacedListeners.forEach { it() }
     }
 
     private fun installInvalidationListener(b: TokenBag) {
