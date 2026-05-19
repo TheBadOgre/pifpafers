@@ -8,6 +8,7 @@ import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.LayerProperties
 import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.model.TokenBag
+import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.persistence.BagOpener
 import net.rafkos.neuroshima.editor.persistence.JsonBagStore
 import net.rafkos.neuroshima.editor.render.ProcessedLayerCache
@@ -58,8 +59,9 @@ class RoundTripRenderTest {
 
         val bag = TokenBag().apply { name = "sample" }
         val t = Token.createUnit()
-        t.addLayer(Layer.create(AssetPath.Bundled("bg.png")))
+        t.addLayer(TokenSide.FRONT, Layer.create(AssetPath.Bundled("bg.png")))
         t.addLayer(
+            TokenSide.FRONT,
             Layer.create(
                 AssetPath.User("dot.png"),
                 LayerProperties(offsetX = 20, offsetY = -10, opacity = 0.8f),
@@ -74,13 +76,13 @@ class RoundTripRenderTest {
         val opener1 = BagOpener(library, cache1)
         val loaded1 = runBlocking { opener1.open(box) }
         val render1 = TokenRenderer(cache1, ProcessedLayerCache(16))
-            .render(loaded1.tokens.first(), sizePx = 100)
+            .render(loaded1.tokens.first(), TokenSide.FRONT, sizePx = 100)
 
         val cache2 = ImageCache(16)
         val opener2 = BagOpener(library, cache2)
         val loaded2 = runBlocking { opener2.open(box) }
         val render2 = TokenRenderer(cache2, ProcessedLayerCache(16))
-            .render(loaded2.tokens.first(), sizePx = 100)
+            .render(loaded2.tokens.first(), TokenSide.FRONT, sizePx = 100)
 
         assertEquals(0, pixelDelta(render1, render2))
 
