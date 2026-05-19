@@ -5,6 +5,7 @@ import net.rafkos.neuroshima.editor.command.DuplicateLayerCommand
 import net.rafkos.neuroshima.editor.command.RemoveLayerCommand
 import net.rafkos.neuroshima.editor.command.ReorderLayerCommand
 import net.rafkos.neuroshima.editor.model.Token
+import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.ui.icon.Icons
 import java.awt.BorderLayout
 import java.awt.Color
@@ -61,14 +62,15 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
         val token: Token? = activeId?.let { ctx.bag.findToken(it) }
         val size = ctx.viewState.layersThumbSize
         if (token != null) {
-            for (layer in token.layers.asReversed()) {
-                val img      = ctx.thumbnails.layerThumbnail(token, layer, size)
+            val side = ctx.viewState.activeSide
+            for (layer in token.layers(side).asReversed()) {
+                val img      = ctx.thumbnails.layerThumbnail(token, side, layer, size)
                 val row      = JPanel(BorderLayout())
                 val selected = layer.id in ctx.viewState.selectedLayers
                 val innerBorder = BorderFactory.createRaisedBevelBorder()
                 val outerBorder = BorderFactory.createLineBorder(
                     if (selected) Color.BLUE else Color.GRAY,
-                    if (selected) 2 else 1,
+                    2, // fixed thickness for both states
                 )
                 row.border = BorderFactory.createCompoundBorder(
                     BorderFactory.createEmptyBorder(1, 1, 1, 1),
@@ -81,17 +83,17 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
 
                 val buttons = JPanel(FlowLayout(FlowLayout.RIGHT, 2, 2))
                 buttons.add(iconBtn(Icons.layerUp, ctx.locale.t("button.layer.up")) {
-                    val idx = token.layers.indexOfFirst { it.id == layer.id }
-                    if (idx < token.layers.size - 1)
-                        ctx.history.execute(ctx.bag, ReorderLayerCommand(token.id, layer.id, idx + 1))
+                    val idx = token.layers(side).indexOfFirst { it.id == layer.id }
+                    if (idx < token.layers(side).size - 1)
+                        ctx.history.execute(ctx.bag, ReorderLayerCommand(token.id, side, layer.id, idx + 1))
                 })
                 buttons.add(iconBtn(Icons.layerDown, ctx.locale.t("button.layer.down")) {
-                    val idx = token.layers.indexOfFirst { it.id == layer.id }
+                    val idx = token.layers(side).indexOfFirst { it.id == layer.id }
                     if (idx > 0)
-                        ctx.history.execute(ctx.bag, ReorderLayerCommand(token.id, layer.id, idx - 1))
+                        ctx.history.execute(ctx.bag, ReorderLayerCommand(token.id, side, layer.id, idx - 1))
                 })
                 buttons.add(iconBtn(Icons.layerDuplicate, ctx.locale.t("button.layer.duplicate")) {
-                    ctx.history.execute(ctx.bag, DuplicateLayerCommand(token.id, layer.id))
+                    ctx.history.execute(ctx.bag, DuplicateLayerCommand(token.id, side, layer.id))
                 })
                 buttons.add(iconBtn(Icons.layerRemove, ctx.locale.t("button.layer.remove")) {
                     val yes = ctx.locale.t("dialog.yes")
@@ -104,7 +106,7 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                         JOptionPane.QUESTION_MESSAGE,
                         null, arrayOf(yes, no), yes,
                     )
-                    if (ok == 0) ctx.history.execute(ctx.bag, RemoveLayerCommand(token.id, layer.id))
+                    if (ok == 0) ctx.history.execute(ctx.bag, RemoveLayerCommand(token.id, side, layer.id))
                 })
                 row.add(buttons, BorderLayout.EAST)
 
