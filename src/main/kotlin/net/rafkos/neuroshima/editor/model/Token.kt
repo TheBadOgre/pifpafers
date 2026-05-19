@@ -45,18 +45,6 @@ class Token(
     fun findLayer(side: TokenSide, layerId: UUID): Layer? =
         sideList(side).firstOrNull { it.id == layerId }
 
-    /** Backward-compat shim: returns FRONT side layers. Replaced by layers(side) in later tasks. */
-    @Deprecated("Use layers(side) instead", ReplaceWith("layers(TokenSide.FRONT)"))
-    val layers: List<Layer> get() = _frontLayers
-
-    /** Backward-compat shim: adds to FRONT side. Replaced in later tasks. */
-    @Deprecated("Use addLayer(side, layer, index) instead", ReplaceWith("addLayer(TokenSide.FRONT, layer, index)"))
-    fun addLayer(layer: Layer, index: Int = _frontLayers.size) = addLayer(TokenSide.FRONT, layer, index)
-
-    /** Backward-compat shim: searches FRONT side only. Replaced by findLayerAnywhere in later tasks. */
-    @Deprecated("Use findLayerAnywhere(layerId) instead", ReplaceWith("findLayerAnywhere(layerId)?.second"))
-    fun findLayer(layerId: UUID): Layer? = _frontLayers.firstOrNull { it.id == layerId }
-
     /** Convenience lookup that searches both sides. Returns (side, layer) or null. */
     fun findLayerAnywhere(layerId: UUID): Pair<TokenSide, Layer>? {
         for (side in TokenSide.values()) {
