@@ -173,7 +173,7 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
             val img = p.toFile().inputStream().use { ImageIO.read(it) }
             if (img != null) ctx.imageCache.put(asset, img)
         }
-        val cmd = AddLayerCommand(tokenId, asset)
+        val cmd = AddLayerCommand(tokenId, ctx.viewState.activeSide, asset)
         ctx.history.execute(ctx.bag, cmd)
         cmd.layerId?.let {
             ctx.viewState.replaceSelection(listOf(it))
