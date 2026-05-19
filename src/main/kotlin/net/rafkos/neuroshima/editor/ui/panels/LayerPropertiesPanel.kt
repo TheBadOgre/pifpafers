@@ -6,6 +6,7 @@ import net.rafkos.neuroshima.editor.command.SetLayerPropertyCommand
 import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.LayerProperties
 import net.rafkos.neuroshima.editor.model.ModelEvent
+import net.rafkos.neuroshima.editor.model.TokenSide
 import java.awt.BorderLayout
 import java.awt.GridLayout
 import java.util.UUID
@@ -13,6 +14,7 @@ import javax.swing.BorderFactory
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JScrollPane
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
 
@@ -27,8 +29,13 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
     init {
         layout = BorderLayout()
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.properties"))
-        add(content, BorderLayout.NORTH)
-        add(resetButton, BorderLayout.SOUTH)
+        add(JScrollPane(content).apply { border = null }, BorderLayout.CENTER)
+        val resetHolder = JPanel(BorderLayout()).apply {
+            isOpaque = true
+            border = BorderFactory.createEmptyBorder(8, 4, 4, 4)
+        }
+        resetHolder.add(resetButton, BorderLayout.CENTER)
+        add(resetHolder, BorderLayout.SOUTH)
         resetButton.addActionListener { resetToDefaults() }
         ctx.addBagListener { event ->
             when (event) {
@@ -43,13 +50,14 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
         rebuild()
     }
 
-    private fun activeLayer(): Pair<UUID, Layer>? {
+    private fun activeLayer(): Triple<UUID, TokenSide, Layer>? {
         if (ctx.viewState.selectedLayers.size != 1) return null
         val tokenId = ctx.viewState.activeTokenId ?: return null
         val layerId = ctx.viewState.selectedLayers.first()
         val token = ctx.bag.findToken(tokenId) ?: return null
-        val layer = token.findLayer(layerId) ?: return null
-        return tokenId to layer
+        val side = ctx.viewState.activeSide
+        val layer = token.findLayer(side, layerId) ?: return null
+        return Triple(tokenId, side, layer)
     }
 
     private fun rebuild() {
@@ -67,7 +75,7 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
             resetButton.isEnabled = false
             return
         }
-        val (tokenId, layer) = pair
+        val (tokenId, side, layer) = pair
         if (layer.id == displayedLayerId) {
             for ((prop, spinner) in spinnerMap) {
                 val v = propValue(layer, prop)
@@ -102,10 +110,11 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
             spinner.addChangeListener {
                 if (suppressChange) return@addChangeListener
                 val newValue = (spinner.value as Number).toDouble()
-                val currentLayer = ctx.bag.findToken(tokenId)?.findLayer(layer.id) ?: return@addChangeListener
+                val currentLayer = ctx.bag.findToken(tokenId)?.findLayer(side, layer.id) ?: return@addChangeListener
                 val oldValue = propValue(currentLayer, capturedProp)
                 ctx.history.execute(ctx.bag, SetLayerPropertyCommand(
                     tokenId = tokenId,
+                    side = side,
                     layerId = layer.id,
                     property = capturedProp,
                     oldValue = oldValue,
@@ -153,7 +162,7 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
 
     private fun resetToDefaults() {
         val pair = activeLayer() ?: return
-        val (tokenId, layer) = pair
+        val (tokenId, side, layer) = pair
         val defaults = LayerProperties()
         val props = listOf(
             LayerProperty.OFFSET_X to defaults.offsetX.toDouble(),
@@ -166,11 +175,12 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
             LayerProperty.BRIGHTNESS to defaults.brightness.toDouble(),
         )
         for ((prop, newValue) in props) {
-            val currentLayer = ctx.bag.findToken(tokenId)?.findLayer(layer.id) ?: continue
+            val currentLayer = ctx.bag.findToken(tokenId)?.findLayer(side, layer.id) ?: continue
             val oldValue = propValue(currentLayer, prop)
             if (oldValue != newValue) {
                 ctx.history.execute(ctx.bag, SetLayerPropertyCommand(
                     tokenId = tokenId,
+                    side = side,
                     layerId = layer.id,
                     property = prop,
                     oldValue = oldValue,
