@@ -3,6 +3,7 @@ package net.rafkos.neuroshima.editor.ui.canvas
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.ModelEvent
+import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.render.AffineBuilder
 import net.rafkos.neuroshima.editor.render.LOGICAL_CANVAS_H
 import net.rafkos.neuroshima.editor.render.LOGICAL_CANVAS_W
@@ -53,6 +54,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
     private val tintCache: MutableMap<AssetPath, BufferedImage> = HashMap()
 
     private var lastActiveToken: UUID? = null
+    private var lastActiveSide: TokenSide = TokenSide.FRONT
     private var lastSelection: Set<UUID> = emptySet()
 
     init {
@@ -62,13 +64,19 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
             val activeId = ctx.viewState.activeTokenId
             when (event) {
                 is ModelEvent.LayerAdded ->
-                    if (event.tokenId == activeId) { compositeValid = false; selectionValid = false }
+                    if (event.tokenId == activeId && event.side == ctx.viewState.activeSide) {
+                        compositeValid = false; selectionValid = false
+                    }
                 is ModelEvent.LayerRemoved ->
-                    if (event.tokenId == activeId) { compositeValid = false; selectionValid = false }
+                    if (event.tokenId == activeId && event.side == ctx.viewState.activeSide) {
+                        compositeValid = false; selectionValid = false
+                    }
                 is ModelEvent.LayerReordered ->
-                    if (event.tokenId == activeId) { compositeValid = false; selectionValid = false }
+                    if (event.tokenId == activeId && event.side == ctx.viewState.activeSide) {
+                        compositeValid = false; selectionValid = false
+                    }
                 is ModelEvent.LayerPropsChanged ->
-                    if (event.tokenId == activeId) {
+                    if (event.tokenId == activeId && event.side == ctx.viewState.activeSide) {
                         compositeValid = false
                         if (event.layerId in ctx.viewState.selectedLayers) selectionValid = false
                     }
@@ -81,12 +89,14 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         ctx.viewState.addListener {
             val newActive = ctx.viewState.activeTokenId
             val newSelection = ctx.viewState.selectedLayers
-            if (newActive != lastActiveToken) {
+            val newSide = ctx.viewState.activeSide
+            if (newActive != lastActiveToken || newSide != lastActiveSide) {
                 compositeValid = false
                 selectionValid = false
                 compositeForTokenId = null
                 tintCache.clear()
                 lastActiveToken = newActive
+                lastActiveSide = newSide
             }
             if (newSelection != lastSelection) {
                 selectionValid = false
@@ -138,7 +148,8 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
             val token = ctx.bag.findToken(tokenId)
             if (token != null) {
-                for (layer in token.layers) {
+                val side = ctx.viewState.activeSide
+                for (layer in token.layers(side)) {
                     val source = ctx.imageCache.get(layer.assetPath) ?: continue
                     val key = ProcessedLayerCache.Key(layer.assetPath, layer.props)
                     val processed = ctx.processedCache.get(key)
@@ -175,7 +186,8 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
             g.fillRect(0, 0, buf.width, buf.height)
             g.composite = AlphaComposite.SrcOver
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-            for (layer in token.layers) {
+            val side = ctx.viewState.activeSide
+            for (layer in token.layers(side)) {
                 if (layer.id !in selected) continue
                 val source = ctx.imageCache.get(layer.assetPath) ?: continue
                 val tinted = tintBlueOf(layer.assetPath, source)
