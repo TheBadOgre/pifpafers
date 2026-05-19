@@ -5,6 +5,7 @@ import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.LayerProperties
 import net.rafkos.neuroshima.editor.model.Token
+import net.rafkos.neuroshima.editor.model.TokenSide
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.awt.Color
@@ -26,9 +27,9 @@ class TokenRendererTest {
         val cache = ImageCache(16)
         val asset = AssetPath.Bundled("solid.png")
         cache.put(asset, solid(Color.RED))
-        val token = Token.createUnit().apply { addLayer(Layer.create(asset)) }
+        val token = Token.createUnit().apply { addLayer(TokenSide.FRONT, Layer.create(asset)) }
         val renderer = TokenRenderer(cache, ProcessedLayerCache(16))
-        val out = renderer.render(token, sizePx = 100)
+        val out = renderer.render(token, TokenSide.FRONT, sizePx = 100)
         assertEquals(100, out.width)
         assertEquals(100, out.height)
         val argb = out.getRGB(50, 50)
@@ -41,7 +42,7 @@ class TokenRendererTest {
     @Test
     fun `renders empty token as transparent`() {
         val renderer = TokenRenderer(ImageCache(4), ProcessedLayerCache(4))
-        val out = renderer.render(Token.createUnit(), sizePx = 50)
+        val out = renderer.render(Token.createUnit(), TokenSide.FRONT, sizePx = 50)
         val alpha = (out.getRGB(25, 25) ushr 24) and 0xff
         assertEquals(0, alpha)
     }
@@ -54,10 +55,10 @@ class TokenRendererTest {
         cache.put(red, solid(Color.RED))
         cache.put(blue, solid(Color.BLUE))
         val token = Token.createUnit().apply {
-            addLayer(Layer.create(red))
-            addLayer(Layer.create(blue)) // top
+            addLayer(TokenSide.FRONT, Layer.create(red))
+            addLayer(TokenSide.FRONT, Layer.create(blue)) // top
         }
-        val out = TokenRenderer(cache, ProcessedLayerCache(16)).render(token, 100)
+        val out = TokenRenderer(cache, ProcessedLayerCache(16)).render(token, TokenSide.FRONT, 100)
         val argb = out.getRGB(50, 50)
         val r = (argb ushr 16) and 0xff
         val b = argb and 0xff
@@ -76,9 +77,9 @@ class TokenRendererTest {
         // Screen y=(451-70)*0.1+5.9=38.1+5.9=44. Image 200x200 at output=20x20px.
         // Screen center x=(522-82)*0.1=44.0 — uncovered by dot at x=64.
         val token = Token.createUnit().apply {
-            addLayer(Layer.create(asset, LayerProperties(offsetX = 200, offsetY = 0)))
+            addLayer(TokenSide.FRONT, Layer.create(asset, LayerProperties(offsetX = 200, offsetY = 0)))
         }
-        val out = TokenRenderer(cache, ProcessedLayerCache(16)).render(token, sizePx = 88)
+        val out = TokenRenderer(cache, ProcessedLayerCache(16)).render(token, TokenSide.FRONT, sizePx = 88)
         val argbHit = out.getRGB(64, 44)
         val alphaHit = (argbHit ushr 24) and 0xff
         assert(alphaHit > 200) { "expected red dot near (64,44), alpha=$alphaHit" }
