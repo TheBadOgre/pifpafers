@@ -19,6 +19,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("org.apache.logging.log4j:log4j-api:2.24.3")
     implementation("org.apache.logging.log4j:log4j-core:2.24.3")
+    implementation("org.apache.pdfbox:pdfbox:3.0.3")
 
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit5"))

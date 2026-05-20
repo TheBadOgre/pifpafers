@@ -18,6 +18,7 @@ class TokenRenderer(
     private val processedCache: ProcessedLayerCache,
 ) {
     fun render(token: Token, side: TokenSide, sizePx: Int): BufferedImage {
+        val effectiveSide = if (token.sameSides && side == TokenSide.BACK) TokenSide.FRONT else side
         val shape  = TokenShape.forKind(token.kind)
         val srcW   = shape.boundingW
         val srcH   = shape.boundingH
@@ -38,7 +39,7 @@ class TokenRenderer(
             g.clip = shape.clipShape()
             val centerX = LOGICAL_CANVAS_W / 2.0
             val centerY = LOGICAL_CANVAS_H / 2.0
-            for (layer in token.layers(side)) {
+            for (layer in token.layers(effectiveSide)) {
                 val source = imageCache.get(layer.assetPath) ?: continue
                 val key = ProcessedLayerCache.Key(layer.assetPath, layer.props)
                 val processed = processedCache.get(key)
