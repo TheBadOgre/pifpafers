@@ -59,6 +59,11 @@ private val rules: List<Rule> = listOf(
         source = "$BASE.ui.tools",
         forbidden = listOf("$BASE.persistence"),
     ),
+    Rule(
+        name = "R9: publish must not depend on ui/command",
+        source = "$BASE.publish",
+        forbidden = listOf("javax.swing", "$BASE.ui", "$BASE.command"),
+    ),
 )
 
 private data class SourceFile(val path: Path, val pkg: String, val imports: List<String>)

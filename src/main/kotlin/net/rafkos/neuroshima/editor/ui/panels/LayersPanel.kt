@@ -62,7 +62,9 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
         val token: Token? = activeId?.let { ctx.bag.findToken(it) }
         val size = ctx.viewState.layersThumbSize
         if (token != null) {
-            val side = ctx.viewState.activeSide
+            val activeSide = ctx.viewState.activeSide
+            val locked = token.sameSides && activeSide == TokenSide.BACK
+            val side = if (locked) TokenSide.FRONT else activeSide
             for (layer in token.layers(side).asReversed()) {
                 val img      = ctx.thumbnails.layerThumbnail(token, side, layer, size)
                 val row      = JPanel(BorderLayout())
@@ -108,21 +110,24 @@ class LayersPanel(private val ctx: AppContext) : JPanel() {
                     )
                     if (ok == 0) ctx.history.execute(ctx.bag, RemoveLayerCommand(token.id, side, layer.id))
                 })
+                if (locked) buttons.components.forEach { it.isEnabled = false }
                 row.add(buttons, BorderLayout.EAST)
 
-                val selectListener = object : MouseAdapter() {
-                    override fun mousePressed(e: MouseEvent) {
-                        if (e.button != MouseEvent.BUTTON1) return
-                        if (e.isControlDown) {
-                            if (layer.id in ctx.viewState.selectedLayers) ctx.viewState.deselectLayer(layer.id)
-                            else ctx.viewState.selectLayer(layer.id)
-                        } else {
-                            ctx.viewState.replaceSelection(listOf(layer.id))
+                if (!locked) {
+                    val selectListener = object : MouseAdapter() {
+                        override fun mousePressed(e: MouseEvent) {
+                            if (e.button != MouseEvent.BUTTON1) return
+                            if (e.isControlDown) {
+                                if (layer.id in ctx.viewState.selectedLayers) ctx.viewState.deselectLayer(layer.id)
+                                else ctx.viewState.selectLayer(layer.id)
+                            } else {
+                                ctx.viewState.replaceSelection(listOf(layer.id))
+                            }
                         }
                     }
+                    row.addMouseListener(selectListener)
+                    lbl.addMouseListener(selectListener)
                 }
-                row.addMouseListener(selectListener)
-                lbl.addMouseListener(selectListener)
 
                 list.add(row)
             }

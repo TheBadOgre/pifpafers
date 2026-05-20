@@ -1,6 +1,9 @@
 package net.rafkos.neuroshima.editor.ui
 
 import net.rafkos.neuroshima.editor.app.AppContext
+import net.rafkos.neuroshima.editor.command.SetSameSidesCommand
+import net.rafkos.neuroshima.editor.model.ModelEvent
+import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.ui.canvas.TokenCanvasPanel
 import net.rafkos.neuroshima.editor.ui.dialogs.SaveBeforeCloseDialog
 import net.rafkos.neuroshima.editor.ui.panels.AssetsLibraryPanel
@@ -50,16 +53,35 @@ class MainFrame(val ctx: AppContext) : JFrame() {
             isSelected = ctx.viewState.showOverlay
             addActionListener { ctx.viewState.setShowOverlay(isSelected) }
         }
+        val sameSidesBox = JCheckBox(ctx.locale.t("checkbox.same.sides")).apply {
+            isEnabled = false
+            addActionListener {
+                val tokenId = ctx.viewState.activeTokenId ?: return@addActionListener
+                ctx.history.execute(ctx.bag, SetSameSidesCommand(tokenId, newValue = isSelected))
+                if (isSelected) ctx.viewState.setActiveSide(TokenSide.FRONT)
+            }
+        }
         val flipBtn = javax.swing.JButton(ctx.locale.t("button.flip.side")).apply {
             addActionListener {
                 val cur = ctx.viewState.activeSide
-                val next = if (cur == net.rafkos.neuroshima.editor.model.TokenSide.FRONT)
-                    net.rafkos.neuroshima.editor.model.TokenSide.BACK
-                else net.rafkos.neuroshima.editor.model.TokenSide.FRONT
+                val next = if (cur == TokenSide.FRONT) TokenSide.BACK else TokenSide.FRONT
                 ctx.viewState.setActiveSide(next)
             }
         }
+
+        val refreshSameSides: () -> Unit = {
+            val token = ctx.viewState.activeTokenId?.let { ctx.bag.findToken(it) }
+            val hasSameSides = token?.sameSides == true
+            sameSidesBox.isEnabled = token != null
+            sameSidesBox.isSelected = hasSameSides
+            flipBtn.isEnabled = token != null && !hasSameSides
+        }
+        ctx.viewState.addListener { refreshSameSides() }
+        ctx.addBagListener { e -> if (e is ModelEvent.SameSidesChanged) refreshSameSides() }
+        refreshSameSides()
+
         south.add(overlayToggle)
+        south.add(sameSidesBox)
         south.add(flipBtn)
         add(south, BorderLayout.SOUTH)
 

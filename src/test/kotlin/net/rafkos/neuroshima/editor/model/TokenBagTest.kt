@@ -22,7 +22,7 @@ class TokenBagTest {
         val t = Token.createUnit()
         bag.addToken(t)
         assertEquals(listOf(t), bag.tokens.toList())
-        val added = events.single() as ModelEvent.TokenAdded
+        val added = events.filterIsInstance<ModelEvent.TokenAdded>().single()
         assertEquals(t.id, added.tokenId)
     }
 
@@ -69,7 +69,7 @@ class TokenBagTest {
         bag.addToken(Token.createUnit())
         bag.removeListener(l)
         bag.addToken(Token.createUnit())
-        assertEquals(1, events.size)
+        assertEquals(2, events.size) // TokenAdded + MaskIdAssigned
     }
 
     @Test

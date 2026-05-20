@@ -4,7 +4,7 @@ Compact, self-contained orientation. There is **no `docs/` directory** — this 
 
 ## Purpose
 
-Desktop Swing tool for composing **Neuroshima Hex** custom tokens by stacking pre-existing PNG image assets. One `.box` file holds one army = unit tokens (hexagonal shape) + modifier tokens (round shape). Print/PDF export is **out of scope**.
+Desktop Swing tool for composing **Neuroshima Hex** custom tokens by stacking pre-existing PNG image assets. One `.box` file holds one army = unit tokens (hexagonal shape) + modifier tokens (round shape). Supports **print/PDF export** via the Publish dialog (Ctrl+P).
 
 No drawing, no text rendering, no game-rules validation. Just layered image composition with per-layer transform (offset/rotation/scale) and per-layer color (opacity/hue/saturation/brightness/colorize).
 
@@ -13,6 +13,7 @@ No drawing, no text rendering, no game-rules validation. Just layered image comp
 - **Kotlin 2.3.10 / JVM 21**, single Gradle module, `application` plugin.
 - Swing/AWT UI (`Graphics2D`, `BufferedImage`, `AffineTransform`, `RescaleOp`).
 - `kotlinx.serialization` (JSON persistence), `kotlinx.coroutines`, `log4j2`.
+- `org.apache.pdfbox:pdfbox:3.0.3` — PDF export (raster-embed via LosslessFactory).
 - Test: `junit-jupiter`, `kotlin-test-junit5`, `mockito-core`, `mockito-kotlin`.
 - Packaging: `jpackage` (Win zip, Linux deb/rpm, macOS dmg).
 - Entry point: `net.rafkos.neuroshima.editor.app.MainKt`.
@@ -41,6 +42,7 @@ ui/ ──► persistence/, prefs/, i18n/
 | R6 | `i18n` | `javax.swing`, `java.awt`, `ui`, `model`, `command` | — |
 | R7 | `prefs` | `javax.swing`, `java.awt`, `ui`, `model` | — |
 | R8 | `ui.tools` | `persistence` | — |
+| R9 | `publish` | `javax.swing`, `ui`, `command` | — |
 
 `util/`, `app/`, `render/overlay`, and `ui` subpackages other than `tools` are unconstrained. **Crossing boundaries → update both `PackageBoundaryTest` rules and this table.**
 
@@ -54,14 +56,21 @@ assets/      AssetLibrary (bundled+user merged tree), ImageCache (LinkedHashMap 
              ImagePreloader, AssetTreeNode
 command/     Command interface, CommandHistory, concrete commands (see list below)
 render/      LayerRenderer (RescaleOp + per-pixel HSB for non-colorize; delegates colorize),
-             AffineBuilder, TokenRenderer (fit-scale canvas → sizePx),
+             AffineBuilder, TokenRenderer (fit-scale canvas → sizePx; sameSides folds BACK→FRONT),
              ThumbnailRenderer (TokenKey | LayerKey cache), ProcessedLayerCache (bound 256),
              render/color/    OkLab (sRGB↔linear↔OKLab/OKLCh), ColorizePipeline (perceptual recolor)
              render/overlay/  OverlayPainter etc.
+publish/     PhysicalSize (mm↔px helpers), MaskIdCodec (encode/decode mask colour),
+             PagePlan (data class: pageIndex, isBackPage, widthPx, heightPx, placements),
+             PageLayoutPlanner (row-based greedy + honeycomb offset), PageRenderer (high-DPI per-token),
+             MaskRenderer (maskId→unique colour, black BG), PageRasterizer (white-BG compositor),
+             PngExporter (front/back/mask PNGs, atomic write), PdfExporter (PDFBox, one page per PagePlan),
+             ExportResult (written/skipped/failed counts)
 ui/          MainFrame, MenuBuilder, StatusBar (dirty marker `*` lives here, not in title), ViewState, WrapLayout
 ui/canvas/   TokenCanvasPanel (paint pipeline + composite cache), CanvasMapper (screen↔logical)
 ui/panels/   TokensCollectionPanel, LayersPanel, LayerPropertiesPanel, AssetsLibraryPanel, ToolPalettePanel
 ui/preview/  PreviewService (debounced 300 ms HQ snapshot for selected token)
+ui/publish/  PublishingDialog (modal, Settings/Export JMenuBar), PagePreviewPanel
 ui/tools/    Tool interface, ToolController, Select/Move/Rotate/Scale/Opacity/Colorize tools
 ui/dialogs/  MissingAssetsDialog, SaveBeforeCloseDialog
 ui/icon/     Icons
@@ -73,8 +82,8 @@ util/        Logging, geometry helpers
 ## Domain Model
 
 ```
-TokenBag(name: String, schemaVersion: Int, tokens: MutableList<Token>)
-  Token(id: UUID, kind: TokenKind { UNIT, MODIFIER })           // two sides per token
+TokenBag(name: String, schemaVersion: Int, tokens: MutableList<Token>, printSettings: PublishSettings)
+  Token(id: UUID, kind: TokenKind { UNIT, MODIFIER }, maskId: Int, sameSides: Boolean) // two sides per token
     front: MutableList<Layer>                                    // accessed via layers(FRONT)
     back:  MutableList<Layer>                                    // accessed via layers(BACK)
       Layer(id: UUID, assetPath: AssetPath, props: LayerProperties)
@@ -92,15 +101,18 @@ TokenBag(name: String, schemaVersion: Int, tokens: MutableList<Token>)
 
 - All ids are UUIDs and **persisted** for stable command targets.
 - `TokenSide { FRONT, BACK }` — every layer-targeting `TokenBag` method, `ModelEvent`, and `Command` carries an explicit `side`. Default side after token creation/activation is `FRONT`.
-- Mutators emit `ModelEvent` (`NameChanged`, `TokenAdded`, `TokenRemoved`, `TokensReordered`, `LayerAdded`, `LayerRemoved`, `LayerReordered`, `LayerPropsChanged`) through a lightweight observer; renderers/thumbnails/preview/canvas listen. Layer events (`LayerAdded`, `LayerRemoved`, `LayerReordered`, `LayerPropsChanged`) carry a `side: TokenSide` field.
+- Mutators emit `ModelEvent` (`NameChanged`, `TokenAdded`, `TokenRemoved`, `TokensReordered`, `LayerAdded`, `LayerRemoved`, `LayerReordered`, `LayerPropsChanged`, `MaskIdAssigned`, `SameSidesChanged`, `PrintSettingsChanged`) through a lightweight observer; renderers/thumbnails/preview/canvas listen. Layer events carry a `side: TokenSide` field.
+- `Token.maskId` — unique non-negative integer per token, stable across undo/redo (assigned by `AddTokenCommand`, copied-fresh by `DuplicateTokenCommand`). Encoded by `MaskIdCodec` as `0xFFFFFF - maskId` for mask images (0 → white).
+- `Token.sameSides` — when `true`, `TokenRenderer` (and `PageRenderer`) render FRONT layers for both sides. `SetSameSidesCommand` toggles it and auto-flips active side to FRONT. The LayersPanel shows locked state (buttons disabled) when viewing BACK with sameSides=true.
+- `TokenBag.printSettings: PublishSettings` — DPI, page format, invertBackSide, renderOverlay. Mutated via `updatePrintSettings()`; fires `PrintSettingsChanged` but does **not** mark the bag dirty (PublishingDialog owns this without pushing to history).
 - `AssetPath` is sealed (`AssetPath.Bundled` / `AssetPath.User`) — the two roots never conflate.
 
 ## Real world assumptions
 This section hold information mostly about the army after printing.
 
 ### Real world dimensions
-- The hexagonal token has 6 edges of 1,8mm each when printed/physically (regular hexagon). The longest diagonal is 3,6mm.
-- The circular token has a diameter of 1,8mm when printed/physically.
+- The hexagonal token has 6 edges of 1,8cm each when printed/physically (regular hexagon). The longest diagonal is 3,6cm.
+- The circular token has a diameter of 1,8cm when printed/physically.
 
 ### Real world tips
 - Each token has a bleeding/overlay when printed, this is to make sure no "white" color is visible if token was slightly misaligned during cutting.
@@ -108,17 +120,19 @@ This section hold information mostly about the army after printing.
 ## Persistence (`.box` JSON)
 
 - Pretty-printed JSON via `kotlinx.serialization`, diff-friendly under git.
-- `CURRENT_SCHEMA_VERSION = 2` (`JsonBagStore`). Loader rejects unknown versions. **No backwards compatibility. v1 files are rejected with `SchemaVersionException`.**
+- `CURRENT_SCHEMA_VERSION = 3` (`JsonBagStore`). Loader rejects unknown versions. **No backwards compatibility. v1/v2 files are rejected with `SchemaVersionException`.**
 - Asset URI scheme: `bundled://<rel>` or `user://<rel>`.
-- File extension: `.box`.
+- File extension: `.box`. `JFileChooser` in open/save-as shows only `.box` files.
 - **Atomic save**: write `.tmp` then `Files.move(..., ATOMIC_MOVE)`.
 - **Hard-fail on load** if any referenced asset is missing: `BagOpener` collects every missing path, shows `MissingAssetsDialog`, aborts. No partial load.
 - On successful load: eager preload of every referenced image into `ImageCache` off-EDT.
 - **Save and Load both clear `CommandHistory`** (wired in `MenuBuilder` save/saveAs and `AppContext.openBag`).
+- v3 adds: `maskId: Int` and `sameSides: Boolean` on each token; top-level `printSettings` object (dpi, pageFormat, invertBackSide, renderOverlay).
 - Example shape:
   ```json
-  { "schemaVersion": 2, "name": "My Army",
-    "tokens": [{ "id": "...", "kind": "UNIT",
+  { "schemaVersion": 3, "name": "My Army",
+    "printSettings": { "dpi": 300, "pageFormat": "A4", "invertBackSide": false, "renderOverlay": true },
+    "tokens": [{ "id": "...", "kind": "UNIT", "maskId": 0, "sameSides": false,
       "front": [{ "id": "...", "asset": "bundled://units/grunt.png",
         "props": { "offsetX": 0, "offsetY": 0, "rotation": 0.0, "scale": 1.0,
                    "opacity": 1.0, "hue": 0.0, "saturation": 1.0, "brightness": 1.0,
@@ -148,7 +162,7 @@ Two roots merged into one virtual tree:
 - Bindings: `Ctrl+Z` undo, `Ctrl+Y` redo. Menu items disabled when the stack is empty.
 
 Concrete commands on disk:
-`AddTokenCommand`, `RemoveTokenCommand`, `DuplicateTokenCommand`, `AddLayerCommand`, `RemoveLayerCommand`, `DuplicateLayerCommand`, `ReorderLayerCommand`, `SetLayerPropertyCommand` (one per `LayerProperty` enum value), `MultiLayerPropertyCommand` (tool drags affecting multi-selected layers), `ColorizeCommand`.
+`AddTokenCommand`, `RemoveTokenCommand`, `DuplicateTokenCommand`, `AddLayerCommand`, `RemoveLayerCommand`, `DuplicateLayerCommand`, `ReorderLayerCommand`, `SetLayerPropertyCommand` (one per `LayerProperty` enum value), `MultiLayerPropertyCommand` (tool drags affecting multi-selected layers), `ColorizeCommand`, `SetSameSidesCommand`.
 
 Two-sided notes:
 - Every layer-targeting command (`AddLayerCommand`, `RemoveLayerCommand`, `DuplicateLayerCommand`, `ReorderLayerCommand`, `SetLayerPropertyCommand`) takes a `side: TokenSide` parameter.
@@ -175,10 +189,10 @@ Two-sided notes:
 ## UI Layout
 
 Five regions:
-- **Top bar**: rename token field (commits on Enter / focus-lost → rename command, undoable) · Save (`Ctrl+S`) · Save As · Print (stub).
+- **Top bar**: rename token field (commits on Enter / focus-lost → rename command, undoable) · Save (`Ctrl+S`) · Save As · Publish (`Ctrl+P`, opens `PublishingDialog`).
 - **Left strip**: 6 mutually-exclusive tool radio buttons — select, move, rotate, scale, opacity, colorize. Active tool installs canvas mouse handler + cursor.
 - **Left panel — Tokens collection**: scrollable grid; thumbnail shape mirrors `kind` (hex / circle). `+ Unit` / `+ Modifier` buttons + size slider on the same row at the bottom. Previews are 1:1 square dual-side composites (front top-left, back bottom-right); MODIFIER tokens render both sides at 55% scale, UNIT tokens at 80%.
-- **Center — Canvas**: A localized "side: front / back" label sits in the top-left corner of the canvas region (above the canvas). The canvas south panel hosts both the `☑ show overlay` toggle (draws `HEX_template_lines.png` over the token; view state, not undoable) and a **Flip side** button that toggles between `FRONT` and `BACK`. Switching side clears the layer selection. When no token is selected, only the dark-grey background paints.
+- **Center — Canvas**: A localized "side: front / back" label sits in the top-left corner of the canvas region (above the canvas). The canvas south panel hosts the `☑ show overlay` toggle, a **☑ Same sides** checkbox (`SetSameSidesCommand`, disables the Flip button when checked, forces active side to FRONT), and a **Flip side** button. Switching side clears the layer selection. When no token is selected, only the dark-grey background paints.
 - **Right top — Current token layers**: vertical list showing only the layers of the **active side**, **top of list = topmost in z-order**. Each row: layer thumbnail + up/down/duplicate/remove buttons. Multi-select (Ctrl+click / Esc to clear). Row border is a constant 2px on both selected and unselected states so the row height does not jitter when selection toggles. Side switch implicitly clears selection.
 - **Right bottom — Layer properties**: visible **only when exactly one layer is selected**. Eight fields + `colorize` toggle. Each edit fires `SetLayerPropertyCommand` (merge-window collapsed). **Reset to defaults** button is wrapped in a panel with a `(top=8)` `EmptyBorder` for visual separation from the spinner grid. When >1 layer is selected, shows `label.multi.layer` message instead of fields.
 - **Bottom — Assets library**: folder tree (merged bundled+user) · grid of asset previews (white background fill so transparent PNGs are visible) · **Refresh content** button (rescans `user://` only) · size slider. Hand cursor on hover.
@@ -214,7 +228,7 @@ Three independent thumbnail size sliders (tokens / layers / assets), range **48�
   - `render/` — `LayerRenderer` non-colorize paths vs a legacy reference (`LayerRendererLegacy`) with ≤2/255 per-channel delta on a fixture; `render/color/` covers `OkLab` round-trip and `ColorizePipeline` invariants (transparent passthrough, luminance preservation, hue targeting, highlight attenuation); plus `AffineBuilder`, `ThumbnailRenderer` cache-key isolation, `TokenRenderer` fit-scale, `ProcessedLayerCache`; `DualSideRenderTest` verifies `renderDual` composite layout and outline decoration.
   - `ui/` — `ViewState`, `CanvasMapper` round-trip `screenToLogical(logicalToScreen(p)) == p`, `SelectTool` alpha-aware hit test (threshold = 8/255), `PreviewService` debounce + version-counter staleness drop. Tests in `ui/tools/` and `ViewState` were updated to thread `TokenSide` through.
   - `i18n/`, `prefs/` — service round-trip, key resolution.
-- **Integration**: `integration/RoundTripRenderTest` renders a sample bag (both sides) and compares against a committed reference PNG (small per-pixel delta tolerance). **Regenerate the reference PNG when intentional render changes land.** Updated to thread `TokenSide` through.
+- **Integration**: `integration/RoundTripRenderTest` renders a sample bag (both sides) and compares against a committed reference PNG (small per-pixel delta tolerance). **Regenerate the reference PNG when intentional render changes land.** `integration/PublishRoundTripTest` covers end-to-end layout planning → rasterization → PNG/PDF export (no reference image; verifies structural correctness and file creation).
 - Tests in `command/`, `model/`, and `persistence/` were also updated to carry `TokenSide` through all layer-targeting operations.
 - **No Swing widget interaction tests** — covered by manual smoke checks.
 

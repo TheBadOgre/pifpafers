@@ -1,10 +1,12 @@
 package net.rafkos.neuroshima.editor.ui
 
 import net.rafkos.neuroshima.editor.app.AppContext
+import net.rafkos.neuroshima.editor.model.ModelEvent
 import net.rafkos.neuroshima.editor.persistence.JsonBagStore
 import net.rafkos.neuroshima.editor.persistence.MissingAssetsException
 import net.rafkos.neuroshima.editor.persistence.SchemaVersionException
 import net.rafkos.neuroshima.editor.ui.dialogs.MissingAssetsDialog
+import net.rafkos.neuroshima.editor.ui.publish.PublishingDialog
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.io.File
@@ -14,6 +16,7 @@ import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JOptionPane
 import javax.swing.KeyStroke
+import javax.swing.filechooser.FileNameExtensionFilter
 import kotlinx.coroutines.runBlocking
 
 class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
@@ -37,10 +40,17 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
         })
         m.add(JMenuItem(ctx.locale.t("menu.file.saveAs")).apply { addActionListener { saveAs() } })
         m.addSeparator()
-        m.add(JMenuItem(ctx.locale.t("menu.file.print")).apply {
-            isEnabled = false
-            toolTipText = ctx.locale.t("tooltip.print.stub")
-        })
+        val publishItem = JMenuItem(ctx.locale.t("menu.file.publish")).apply {
+            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_P, InputEvent.CTRL_DOWN_MASK)
+            isEnabled = ctx.bag.tokens.isNotEmpty()
+            addActionListener { PublishingDialog(ctx, frame).isVisible = true }
+        }
+        ctx.addBagListener { e ->
+            if (e is ModelEvent.TokenAdded || e is ModelEvent.TokenRemoved) {
+                publishItem.isEnabled = ctx.bag.tokens.isNotEmpty()
+            }
+        }
+        m.add(publishItem)
         return m
     }
 
@@ -66,7 +76,9 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
     }
 
     fun saveAs(): Boolean {
-        val chooser = JFileChooser()
+        val chooser = JFileChooser().apply {
+            fileFilter = FileNameExtensionFilter(ctx.locale.t("filter.box.description"), "box")
+        }
         if (chooser.showSaveDialog(frame) != JFileChooser.APPROVE_OPTION) return false
         val raw: File = chooser.selectedFile
         val path = if (raw.extension.equals("box", ignoreCase = true)) raw.toPath()
@@ -79,7 +91,9 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
     }
 
     private fun open() {
-        val chooser = JFileChooser()
+        val chooser = JFileChooser().apply {
+            fileFilter = FileNameExtensionFilter(ctx.locale.t("filter.box.description"), "box")
+        }
         if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) return
         val path = chooser.selectedFile.toPath()
         val opener = net.rafkos.neuroshima.editor.persistence.BagOpener(ctx.library, ctx.imageCache)
