@@ -95,6 +95,16 @@ TokenBag(name: String, schemaVersion: Int, tokens: MutableList<Token>)
 - Mutators emit `ModelEvent` (`NameChanged`, `TokenAdded`, `TokenRemoved`, `TokensReordered`, `LayerAdded`, `LayerRemoved`, `LayerReordered`, `LayerPropsChanged`) through a lightweight observer; renderers/thumbnails/preview/canvas listen. Layer events (`LayerAdded`, `LayerRemoved`, `LayerReordered`, `LayerPropsChanged`) carry a `side: TokenSide` field.
 - `AssetPath` is sealed (`AssetPath.Bundled` / `AssetPath.User`) — the two roots never conflate.
 
+## Real world assumptions
+This section hold information mostly about the army after printing.
+
+### Real world dimensions
+- The hexagonal token has 6 edges of 1,8mm each when printed/physically (regular hexagon). The longest diagonal is 3,6mm.
+- The circular token has a diameter of 1,8mm when printed/physically.
+
+### Real world tips
+- Each token has a bleeding/overlay when printed, this is to make sure no "white" color is visible if token was slightly misaligned during cutting.
+
 ## Persistence (`.box` JSON)
 
 - Pretty-printed JSON via `kotlinx.serialization`, diff-friendly under git.
