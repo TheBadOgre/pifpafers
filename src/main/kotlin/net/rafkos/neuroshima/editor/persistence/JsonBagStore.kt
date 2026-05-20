@@ -4,6 +4,8 @@ import kotlinx.serialization.json.Json
 import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.LayerProperties
+import net.rafkos.neuroshima.editor.model.PageFormat
+import net.rafkos.neuroshima.editor.model.PublishSettings
 import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.model.TokenBag
 import net.rafkos.neuroshima.editor.model.TokenKind
@@ -13,7 +15,7 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.UUID
 
-const val CURRENT_SCHEMA_VERSION = 2
+const val CURRENT_SCHEMA_VERSION = 3
 
 class SchemaVersionException(val found: Int) :
     RuntimeException("Unsupported schema version: $found (current = $CURRENT_SCHEMA_VERSION)")
@@ -30,6 +32,7 @@ class JsonBagStore(
         val dto = BagDto(
             schemaVersion = CURRENT_SCHEMA_VERSION,
             name = bag.name,
+            printSettings = bag.printSettings.toDto(),
             tokens = bag.tokens.map { it.toDto() },
         )
         val text = json.encodeToString(BagDto.serializer(), dto)
@@ -60,7 +63,10 @@ class JsonBagStore(
         }
         if (missing.isNotEmpty()) throw MissingAssetsException(missing)
 
-        val bag = TokenBag().apply { name = dto.name }
+        val bag = TokenBag().apply {
+            name = dto.name
+            updatePrintSettings(dto.printSettings.toModel())
+        }
         for (t in dto.tokens) bag.addToken(t.toModel())
         return bag
     }
@@ -68,6 +74,8 @@ class JsonBagStore(
     private fun Token.toDto(): TokenDto = TokenDto(
         id = id.toString(),
         kind = kind.name,
+        maskId = maskId,
+        sameSides = sameSides,
         front = layers(TokenSide.FRONT).map { it.toDto() },
         back = layers(TokenSide.BACK).map { it.toDto() },
     )
@@ -82,8 +90,23 @@ class JsonBagStore(
         offsetX, offsetY, rotation, scale, opacity, hue, saturation, brightness, colorize
     )
 
+    private fun PublishSettings.toDto(): PublishSettingsDto = PublishSettingsDto(
+        dpi = dpi,
+        pageFormat = pageFormat.name,
+        invertBackSide = invertBackSide,
+        renderOverlay = renderOverlay,
+    )
+
+    private fun PublishSettingsDto.toModel(): PublishSettings = PublishSettings(
+        dpi = dpi,
+        pageFormat = PageFormat.valueOf(pageFormat),
+        invertBackSide = invertBackSide,
+        renderOverlay = renderOverlay,
+    )
+
     private fun TokenDto.toModel(): Token {
-        val t = Token(UUID.fromString(id), TokenKind.valueOf(kind))
+        val t = Token(UUID.fromString(id), TokenKind.valueOf(kind),
+            maskId = maskId, sameSides = sameSides)
         for (l in front) t.addLayer(TokenSide.FRONT, l.toModel())
         for (l in back) t.addLayer(TokenSide.BACK, l.toModel())
         return t
