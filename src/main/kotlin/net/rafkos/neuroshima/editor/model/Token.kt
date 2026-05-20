@@ -7,6 +7,8 @@ enum class TokenKind { UNIT, MODIFIER }
 class Token(
     val id: UUID,
     val kind: TokenKind,
+    var maskId: Int = 0,
+    var sameSides: Boolean = false,
 ) {
     private val _frontLayers: MutableList<Layer> = mutableListOf()
     private val _backLayers: MutableList<Layer> = mutableListOf()
@@ -45,7 +47,6 @@ class Token(
     fun findLayer(side: TokenSide, layerId: UUID): Layer? =
         sideList(side).firstOrNull { it.id == layerId }
 
-    /** Convenience lookup that searches both sides. Returns (side, layer) or null. */
     fun findLayerAnywhere(layerId: UUID): Pair<TokenSide, Layer>? {
         for (side in TokenSide.values()) {
             sideList(side).firstOrNull { it.id == layerId }?.let { return side to it }

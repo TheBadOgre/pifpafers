@@ -14,6 +14,8 @@ class DuplicateTokenCommand(private val sourceTokenId: UUID) : Command {
     private var snapshotKind: TokenKind? = null
     private var snapshotFront: List<Layer>? = null
     private var snapshotBack: List<Layer>? = null
+    private var snapshotSameSides: Boolean = false
+    private var assignedMaskId: Int = -1
 
     override fun execute(bag: TokenBag) {
         val source = bag.findToken(sourceTokenId) ?: throw NoSuchElementException("Token $sourceTokenId")
@@ -25,7 +27,9 @@ class DuplicateTokenCommand(private val sourceTokenId: UUID) : Command {
         val back = snapshotBack
             ?: source.layers(TokenSide.BACK).map { l -> Layer(UUID.randomUUID(), l.assetPath, l.props) }
                 .also { snapshotBack = it }
-        val copy = Token(id, kind)
+        val sameSides = if (snapshotFront != null) snapshotSameSides else source.sameSides.also { snapshotSameSides = it }
+        val maskId = if (assignedMaskId >= 0) assignedMaskId else bag.nextMaskId().also { assignedMaskId = it }
+        val copy = Token(id, kind, maskId = maskId, sameSides = sameSides)
         for (l in front) copy.addLayer(TokenSide.FRONT, l)
         for (l in back) copy.addLayer(TokenSide.BACK, l)
         val idx = bag.tokens.indexOfFirst { it.id == sourceTokenId }

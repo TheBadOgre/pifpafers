@@ -3,7 +3,7 @@ package net.rafkos.neuroshima.editor.model
 import java.util.UUID
 
 class TokenBag {
-    var schemaVersion: Int = 2
+    var schemaVersion: Int = 3
         internal set
 
     var name: String = ""
@@ -13,6 +13,9 @@ class TokenBag {
                 fire(ModelEvent.NameChanged)
             }
         }
+
+    var printSettings: PublishSettings = PublishSettings()
+        private set
 
     private val _tokens: MutableList<Token> = mutableListOf()
     val tokens: List<Token> get() = _tokens
@@ -26,9 +29,12 @@ class TokenBag {
         for (l in listeners.toList()) l(event)
     }
 
+    fun nextMaskId(): Int = (_tokens.maxOfOrNull { it.maskId } ?: -1) + 1
+
     fun addToken(token: Token, index: Int = _tokens.size) {
         _tokens.add(index, token)
         fire(ModelEvent.TokenAdded(token.id, index))
+        fire(ModelEvent.MaskIdAssigned(token.id, token.maskId))
     }
 
     fun removeToken(tokenId: UUID) {
@@ -39,6 +45,19 @@ class TokenBag {
     }
 
     fun findToken(tokenId: UUID): Token? = _tokens.firstOrNull { it.id == tokenId }
+
+    fun updateSameSides(tokenId: UUID, newValue: Boolean) {
+        val token = requireToken(tokenId)
+        if (token.sameSides == newValue) return
+        token.sameSides = newValue
+        fire(ModelEvent.SameSidesChanged(tokenId))
+    }
+
+    fun updatePrintSettings(newSettings: PublishSettings) {
+        if (printSettings == newSettings) return
+        printSettings = newSettings
+        fire(ModelEvent.PrintSettingsChanged)
+    }
 
     fun addLayer(tokenId: UUID, side: TokenSide, layer: Layer, index: Int? = null) {
         val token = requireToken(tokenId)

@@ -12,15 +12,12 @@ class AddTokenCommand(
     override val label: String = "Add ${kind.name.lowercase()} token"
     var createdId: UUID? = null
         private set
+    private var assignedMaskId: Int = -1
 
     override fun execute(bag: TokenBag) {
-        val token = when (kind) {
-            TokenKind.UNIT -> Token.createUnit()
-            TokenKind.MODIFIER -> Token.createModifier()
-        }.let { existing ->
-            createdId?.let { Token(it, kind) } ?: existing
-        }
-        createdId = token.id
+        val id = createdId ?: UUID.randomUUID().also { createdId = it }
+        val maskId = if (assignedMaskId >= 0) assignedMaskId else bag.nextMaskId().also { assignedMaskId = it }
+        val token = Token(id, kind, maskId = maskId)
         bag.addToken(token, atIndex.coerceIn(0, bag.tokens.size))
     }
 
