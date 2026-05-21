@@ -133,8 +133,12 @@ class PublishingDialog(
         val baseName = JOptionPane.showInputDialog(
             this,
             ctx.locale.t("dialog.publish.basename.prompt"),
+            ctx.locale.t("dialog.publish.basename.title"),
+            JOptionPane.PLAIN_MESSAGE,
+            null,
+            null,
             ctx.bag.name.ifBlank { "army" },
-        ) ?: return
+        ) as? String ?: return
         runExport {
             val plans = PageLayoutPlanner(ctx.bag.printSettings, ctx.bag.tokens).plan()
             val rasterizer = PageRasterizer(PageRenderer(ctx.imageCache))
@@ -162,14 +166,19 @@ class PublishingDialog(
     }
 
     private fun chooseDirectory(): Path? {
-        val chooser = JFileChooser().apply { fileSelectionMode = JFileChooser.DIRECTORIES_ONLY }
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return null
+        val chooser = JFileChooser().apply {
+            dialogTitle = ctx.locale.t("chooser.export.images.title")
+            approveButtonText = ctx.locale.t("chooser.export.images.approve")
+            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+        }
+        if (chooser.showDialog(this, null) != JFileChooser.APPROVE_OPTION) return null
         return chooser.selectedFile.toPath()
     }
 
     private fun choosePdfFile(): Path? {
         val chooser = JFileChooser().apply {
-            fileFilter = FileNameExtensionFilter("PDF", "pdf")
+            dialogTitle = ctx.locale.t("chooser.export.pdf.title")
+            fileFilter = FileNameExtensionFilter(ctx.locale.t("filter.pdf.description"), "pdf")
         }
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return null
         val raw = chooser.selectedFile

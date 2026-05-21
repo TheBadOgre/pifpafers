@@ -78,6 +78,7 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
 
     fun saveAs(): Boolean {
         val chooser = JFileChooser().apply {
+            dialogTitle = ctx.locale.t("chooser.save.army.title")
             fileFilter = FileNameExtensionFilter(ctx.locale.t("filter.box.description"), "box")
         }
         if (chooser.showSaveDialog(frame) != JFileChooser.APPROVE_OPTION) return false
@@ -93,6 +94,7 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
 
     private fun open() {
         val chooser = JFileChooser().apply {
+            dialogTitle = ctx.locale.t("chooser.open.army.title")
             fileFilter = FileNameExtensionFilter(ctx.locale.t("filter.box.description"), "box")
         }
         if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) return
