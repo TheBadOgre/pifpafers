@@ -1,15 +1,19 @@
 package net.rafkos.neuroshima.editor.ui
 
 import net.rafkos.neuroshima.editor.app.AppContext
+import net.rafkos.neuroshima.editor.command.PasteLayersCommand
+import net.rafkos.neuroshima.editor.model.LayerSnapshot
 import net.rafkos.neuroshima.editor.model.ModelEvent
 import net.rafkos.neuroshima.editor.persistence.JsonBagStore
 import net.rafkos.neuroshima.editor.persistence.MissingAssetsException
 import net.rafkos.neuroshima.editor.persistence.SchemaVersionException
 import net.rafkos.neuroshima.editor.ui.dialogs.MissingAssetsDialog
 import net.rafkos.neuroshima.editor.ui.publish.PublishingDialog
+import java.awt.KeyboardFocusManager
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.io.File
+import java.util.UUID
 import javax.swing.JFileChooser
 import javax.swing.JMenu
 import javax.swing.JMenuBar
@@ -17,6 +21,7 @@ import javax.swing.JMenuItem
 import javax.swing.JOptionPane
 import javax.swing.KeyStroke
 import javax.swing.filechooser.FileNameExtensionFilter
+import javax.swing.text.JTextComponent
 import kotlinx.coroutines.runBlocking
 
 class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
@@ -65,6 +70,65 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
             accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK)
             addActionListener { ctx.history.redo(ctx.bag) }
         })
+
+        m.addSeparator()
+
+        val copyItem = JMenuItem(ctx.locale.t("menu.edit.copy.layers")).apply {
+            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK)
+            isEnabled = false
+        }
+        val pasteItem = JMenuItem(ctx.locale.t("menu.edit.paste.layers")).apply {
+            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK)
+            isEnabled = false
+        }
+
+        fun updateCopyEnabled() {
+            copyItem.isEnabled = ctx.viewState.activeTokenId != null &&
+                ctx.viewState.selectedLayers.isNotEmpty()
+        }
+        fun updatePasteEnabled() {
+            pasteItem.isEnabled = !ctx.clipboard.isEmpty &&
+                ctx.viewState.activeTokenId != null
+        }
+
+        ctx.viewState.addListener { updateCopyEnabled(); updatePasteEnabled() }
+        ctx.clipboard.addListener { updatePasteEnabled() }
+        ctx.addBagReplacedListener { updateCopyEnabled(); updatePasteEnabled() }
+
+        copyItem.addActionListener {
+            val focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
+            if (focusOwner is JTextComponent) return@addActionListener
+            val tokenId = ctx.viewState.activeTokenId ?: return@addActionListener
+            val token = ctx.bag.findToken(tokenId) ?: return@addActionListener
+            val side = ctx.viewState.activeSide
+            val selected = ctx.viewState.selectedLayers
+            val snapshots = token.layers(side)
+                .filter { it.id in selected }
+                .map { LayerSnapshot(it.assetPath, it.props) }
+            if (snapshots.isNotEmpty()) ctx.clipboard.copy(snapshots)
+        }
+
+        pasteItem.addActionListener {
+            val focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
+            if (focusOwner is JTextComponent) return@addActionListener
+            if (ctx.clipboard.isEmpty) return@addActionListener
+            val tokenId = ctx.viewState.activeTokenId ?: return@addActionListener
+            val token = ctx.bag.findToken(tokenId) ?: return@addActionListener
+            val side = ctx.viewState.activeSide
+            val layers = token.layers(side)
+            val selected = ctx.viewState.selectedLayers
+            val insertIndex = if (selected.isNotEmpty()) {
+                layers.indexOfLast { it.id in selected } + 1
+            } else {
+                layers.size
+            }
+            val layerIds = ctx.clipboard.contents.map { UUID.randomUUID() }
+            ctx.history.execute(ctx.bag, PasteLayersCommand(tokenId, side, ctx.clipboard.contents, insertIndex, layerIds))
+            ctx.viewState.replaceSelection(layerIds)
+        }
+
+        m.add(copyItem)
+        m.add(pasteItem)
         return m
     }
 
