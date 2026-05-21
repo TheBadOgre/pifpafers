@@ -17,10 +17,14 @@ sealed interface PreviewKey {
 }
 
 class PreviewService(
-    private val bag: TokenBag,
+    bag: TokenBag,
     private val tokenRenderer: TokenRenderer,
     private val debounceMillis: Long = 300L,
 ) {
+    @Volatile var bag: TokenBag = bag
+        private set
+
+    fun updateBag(newBag: TokenBag) { bag = newBag }
     private data class Subscription(
         val sizePx: Int,
         val onReady: (BufferedImage) -> Unit,

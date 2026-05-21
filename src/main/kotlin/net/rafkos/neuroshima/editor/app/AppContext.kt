@@ -65,13 +65,14 @@ class AppContext(
     fun replaceBag(newBag: TokenBag, file: Path?) {
         bag = newBag.also { b ->
             b.addListener { dirty = true }
+            installInvalidationListener(b)
             for (l in persistentBagListeners) b.addListener(l)
         }
         currentFile = file
         dirty = false
         history.clear()
+        previewService.updateBag(bag)
         viewState.setActiveToken(bag.tokens.firstOrNull()?.id)
-        installInvalidationListener(bag)
         bagReplacedListeners.forEach { it() }
     }
 
