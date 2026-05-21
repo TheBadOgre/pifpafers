@@ -118,7 +118,8 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
             val layers = token.layers(side)
             val selected = ctx.viewState.selectedLayers
             val insertIndex = if (selected.isNotEmpty()) {
-                layers.indexOfLast { it.id in selected } + 1
+                val idx = layers.indexOfLast { it.id in selected }
+                if (idx >= 0) idx + 1 else layers.size
             } else {
                 layers.size
             }
