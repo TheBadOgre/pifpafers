@@ -1,6 +1,7 @@
 package net.rafkos.neuroshima.editor.ui.panels
 
 import net.rafkos.neuroshima.editor.app.AppContext
+import net.rafkos.neuroshima.editor.command.ColorizeCommand
 import net.rafkos.neuroshima.editor.command.LayerProperty
 import net.rafkos.neuroshima.editor.command.SetLayerPropertyCommand
 import net.rafkos.neuroshima.editor.model.Layer
@@ -12,6 +13,7 @@ import java.awt.GridLayout
 import java.util.UUID
 import javax.swing.BorderFactory
 import javax.swing.JButton
+import javax.swing.JCheckBox
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
@@ -22,6 +24,7 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
 
     private val content = JPanel(GridLayout(0, 2, 4, 2))
     private val spinnerMap = mutableMapOf<LayerProperty, JSpinner>()
+    private var colorizeCb: JCheckBox? = null
     private var displayedLayerId: UUID? = null
     private var suppressChange = false
     private val resetButton = JButton(ctx.locale.t("button.reset.defaults"))
@@ -69,6 +72,7 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
                 (content.getComponent(0) as? JLabel)?.text == ctx.locale.t(msgKey)) return
             displayedLayerId = null
             spinnerMap.clear()
+            colorizeCb = null
             content.removeAll()
             content.add(JLabel(ctx.locale.t(msgKey)))
             content.add(JLabel(""))
@@ -86,10 +90,18 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
                     suppressChange = false
                 }
             }
+            colorizeCb?.let { cb ->
+                if (cb.isSelected != layer.props.colorize) {
+                    suppressChange = true
+                    cb.isSelected = layer.props.colorize
+                    suppressChange = false
+                }
+            }
             return
         }
         displayedLayerId = layer.id
         spinnerMap.clear()
+        colorizeCb = null
         content.removeAll()
         val props = listOf(
             LayerProperty.OFFSET_X,
@@ -125,6 +137,21 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
             spinnerMap[prop] = spinner
             content.add(spinner)
         }
+        content.add(JLabel(ctx.locale.t("prop.colorize")))
+        val cb = JCheckBox()
+        cb.isSelected = layer.props.colorize
+        cb.addActionListener {
+            if (suppressChange) return@addActionListener
+            val currentLayer = ctx.bag.findToken(tokenId)?.findLayer(side, layer.id) ?: return@addActionListener
+            val currentProps = currentLayer.props
+            ctx.history.execute(ctx.bag, ColorizeCommand(
+                tokenId = tokenId,
+                side = side,
+                changes = listOf(ColorizeCommand.LayerChange(layer.id, currentProps, currentProps.copy(colorize = cb.isSelected)))
+            ))
+        }
+        colorizeCb = cb
+        content.add(cb)
         content.revalidate(); content.repaint()
         resetButton.isEnabled = true
     }
@@ -164,30 +191,14 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
     private fun resetToDefaults() {
         val pair = activeLayer() ?: return
         val (tokenId, side, layer) = pair
+        val currentProps = layer.props
         val defaults = LayerProperties()
-        val props = listOf(
-            LayerProperty.OFFSET_X to defaults.offsetX.toDouble(),
-            LayerProperty.OFFSET_Y to defaults.offsetY.toDouble(),
-            LayerProperty.ROTATION to defaults.rotation.toDouble(),
-            LayerProperty.SCALE    to defaults.scale.toDouble(),
-            LayerProperty.OPACITY  to defaults.opacity.toDouble(),
-            LayerProperty.HUE      to defaults.hue.toDouble(),
-            LayerProperty.SATURATION to defaults.saturation.toDouble(),
-            LayerProperty.BRIGHTNESS to defaults.brightness.toDouble(),
-        )
-        for ((prop, newValue) in props) {
-            val currentLayer = ctx.bag.findToken(tokenId)?.findLayer(side, layer.id) ?: continue
-            val oldValue = propValue(currentLayer, prop)
-            if (oldValue != newValue) {
-                ctx.history.execute(ctx.bag, SetLayerPropertyCommand(
-                    tokenId = tokenId,
-                    side = side,
-                    layerId = layer.id,
-                    property = prop,
-                    oldValue = oldValue,
-                    newValue = newValue,
-                ))
-            }
+        if (currentProps != defaults) {
+            ctx.history.execute(ctx.bag, ColorizeCommand(
+                tokenId = tokenId,
+                side = side,
+                changes = listOf(ColorizeCommand.LayerChange(layer.id, currentProps, defaults))
+            ))
         }
     }
 }

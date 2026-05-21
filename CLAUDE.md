@@ -28,8 +28,6 @@ ui/ ──► render/  ──► assets/
 ui/ ──► persistence/, prefs/, i18n/
 ```
 
-**Localisation: every text visible in UI must be localised.
-
 ### Package boundaries (enforced by `architecture/PackageBoundaryTest`)
 
 `BASE = net.rafkos.neuroshima.editor`
@@ -217,6 +215,7 @@ Three independent thumbnail size sliders (tokens / layers / assets), range **48�
 - **Rule: no user-visible string literals in UI code** — always `ctx.locale.t("key")`. When adding a UI string, add the key to **both** `.properties` files.
 - File paths / asset names are not translated.
 - `ui/dialogs/*` dialogs must take either a `LocaleService` or pre-resolved strings — never embed literals.
+- Every text visible in UI must be localized.
 
 ## Testing — **High Importance**
 
