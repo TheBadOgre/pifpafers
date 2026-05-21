@@ -28,6 +28,8 @@ ui/ ──► render/  ──► assets/
 ui/ ──► persistence/, prefs/, i18n/
 ```
 
+**Localisation: every text visible in UI must be localised.
+
 ### Package boundaries (enforced by `architecture/PackageBoundaryTest`)
 
 `BASE = net.rafkos.neuroshima.editor`
@@ -71,8 +73,8 @@ ui/canvas/   TokenCanvasPanel (paint pipeline + composite cache), CanvasMapper (
 ui/panels/   TokensCollectionPanel, LayersPanel, LayerPropertiesPanel, AssetsLibraryPanel, ToolPalettePanel
 ui/preview/  PreviewService (debounced 300 ms HQ snapshot for selected token)
 ui/publish/  PublishingDialog (modal, Settings/Export JMenuBar), PagePreviewPanel
-ui/tools/    Tool interface, ToolController, Select/Move/Rotate/Scale/Opacity/Colorize tools
-ui/dialogs/  MissingAssetsDialog, SaveBeforeCloseDialog
+ui/tools/    Tool interface, ToolController, Select/Move/Rotate/Scale/Colorize tools; OpacityTool (object, dialog-based, not a canvas Tool)
+ui/dialogs/  MissingAssetsDialog, SaveBeforeCloseDialog, ColorizeDialog, OpacityDialog
 ui/icon/     Icons
 i18n/        LocaleService (ResourceBundle, English default + Polish, OS-picked)
 prefs/       UserPreferences, PrefsStore
@@ -190,7 +192,7 @@ Two-sided notes:
 
 Five regions:
 - **Top bar**: rename token field (commits on Enter / focus-lost → rename command, undoable) · Save (`Ctrl+S`) · Save As · Publish (`Ctrl+P`, opens `PublishingDialog`).
-- **Left strip**: 6 mutually-exclusive tool radio buttons — select, move, rotate, scale, opacity, colorize. Active tool installs canvas mouse handler + cursor.
+- **Left strip**: 4 mutually-exclusive tool radio buttons — select, move, rotate, scale — plus two one-shot push buttons (below a separator): colorize and opacity, each opening a modal dialog. Active tool installs canvas mouse handler + cursor.
 - **Left panel — Tokens collection**: scrollable grid; thumbnail shape mirrors `kind` (hex / circle). `+ Unit` / `+ Modifier` buttons + size slider on the same row at the bottom. Previews are 1:1 square dual-side composites (front top-left, back bottom-right); MODIFIER tokens render both sides at 55% scale, UNIT tokens at 80%.
 - **Center — Canvas**: A localized "side: front / back" label sits in the top-left corner of the canvas region (above the canvas). The canvas south panel hosts the `☑ show overlay` toggle, a **☑ Same sides** checkbox (`SetSameSidesCommand`, disables the Flip button when checked, forces active side to FRONT), and a **Flip side** button. Switching side clears the layer selection. When no token is selected, only the dark-grey background paints.
 - **Right top — Current token layers**: vertical list showing only the layers of the **active side**, **top of list = topmost in z-order**. Each row: layer thumbnail + up/down/duplicate/remove buttons. Multi-select (Ctrl+click / Esc to clear). Row border is a constant 2px on both selected and unselected states so the row height does not jitter when selection toggles. Side switch implicitly clears selection.
@@ -206,7 +208,8 @@ Three independent thumbnail size sliders (tokens / layers / assets), range **48�
 - **Layer removal**: confirmation dialog also present (`LayersPanel`). Undoable via `RemoveLayerCommand`. *(Note: original design called for no-confirm on layers since undo covers it — code currently confirms. If you change this, update here.)*
 - **Rename** = command (undoable), not a direct mutation.
 - **Save-before-close** dialog (`SaveBeforeCloseDialog`) on window-close and on opening another bag when current is dirty.
-- **Colorize dialog** (`ColorizeTool`) previews live: each `JColorChooser` change directly mutates selected layers' props via `bag.updateLayerProps` (bypasses history). The chooser is locked to its HSL panel only (all other panels stripped at construction). Selection blue tint is suppressed while the dialog is open. OK reverts the previewed state, then pushes a single `ColorizeCommand` (original → final) onto history; Cancel/close reverts silently.
+- **Colorize dialog** (`ColorizeTool`) previews live: slider changes directly mutate selected layers' props via `bag.updateLayerProps` (bypasses history). Dialog has three sliders: hue, saturation, brightness. Selection blue tint is suppressed while the dialog is open. OK reverts the previewed state, then pushes a single `ColorizeCommand` (original → final, full `LayerProperties` snapshot) onto history; Cancel/close reverts silently.
+- **Opacity dialog** (`OpacityTool` object) previews live: single opacity slider (0–100%). OK pushes `MultiLayerPropertyCommand(OPACITY, targets)` onto history. `opacityValue` field name used (avoids `JDialog.getOpacity()` JVM clash). Cancel reverts silently.
 
 ## i18n
 

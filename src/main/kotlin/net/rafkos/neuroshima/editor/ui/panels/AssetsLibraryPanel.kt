@@ -73,6 +73,7 @@ class AssetsLibraryPanel(private val ctx: AppContext) : JPanel() {
                 ctx.library.refreshUser()
                 rebuildTree()
                 restorePath(savedPath)
+                refreshPreview()
             }
         }, BorderLayout.WEST)
         slider.preferredSize = Dimension(120, slider.preferredSize.height)

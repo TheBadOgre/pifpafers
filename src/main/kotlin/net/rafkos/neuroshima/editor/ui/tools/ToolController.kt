@@ -14,7 +14,6 @@ class ToolController(private val ctx: AppContext, private val attachTo: Componen
         ToolId.MOVE     to MoveTool(),
         ToolId.ROTATE   to RotateTool(),
         ToolId.SCALE    to ScaleTool(),
-        ToolId.OPACITY  to OpacityTool(),
         ToolId.COLORIZE to ColorizeTool(),
     )
 

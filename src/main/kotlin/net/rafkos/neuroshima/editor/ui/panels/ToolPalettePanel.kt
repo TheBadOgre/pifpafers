@@ -4,6 +4,7 @@ import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.ui.ToolId
 import net.rafkos.neuroshima.editor.ui.icon.Icons
 import net.rafkos.neuroshima.editor.ui.tools.ColorizeTool
+import net.rafkos.neuroshima.editor.ui.tools.OpacityTool
 import java.awt.Dimension
 import java.awt.Insets
 import javax.swing.BorderFactory
@@ -56,6 +57,17 @@ class ToolPalettePanel(private val ctx: AppContext) : JPanel() {
             addActionListener { ColorizeTool.run(ctx, this) }
         }
         add(colorizeBtn)
+        add(Box.createVerticalStrut(2))
+
+        val opacityBtn = JButton(Icons.toolOpacity).apply {
+            toolTipText = ctx.locale.t("tool.opacity")
+            preferredSize = Dimension(BTN, BTN)
+            minimumSize   = Dimension(BTN, BTN)
+            maximumSize   = Dimension(BTN, BTN)
+            margin        = Insets(2, 2, 2, 2)
+            addActionListener { OpacityTool.run(ctx, this) }
+        }
+        add(opacityBtn)
 
         fun updateState() {
             val hasToken     = ctx.viewState.activeTokenId != null
@@ -64,8 +76,8 @@ class ToolPalettePanel(private val ctx: AppContext) : JPanel() {
             toggleBtns[ToolId.MOVE]?.isEnabled    = hasSelection
             toggleBtns[ToolId.ROTATE]?.isEnabled  = hasSelection
             toggleBtns[ToolId.SCALE]?.isEnabled   = hasSelection
-            toggleBtns[ToolId.OPACITY]?.isEnabled = hasSelection
             colorizeBtn.isEnabled = hasSelection
+            opacityBtn.isEnabled  = hasSelection
             toggleBtns.forEach { (id, btn) -> btn.isSelected = id == ctx.viewState.activeTool }
         }
 
@@ -78,7 +90,6 @@ class ToolPalettePanel(private val ctx: AppContext) : JPanel() {
         ToolId.MOVE     -> Icons.toolMove
         ToolId.ROTATE   -> Icons.toolRotate
         ToolId.SCALE    -> Icons.toolScale
-        ToolId.OPACITY  -> Icons.toolOpacity
         ToolId.COLORIZE -> Icons.toolColorize
     }
 
@@ -87,7 +98,6 @@ class ToolPalettePanel(private val ctx: AppContext) : JPanel() {
         ToolId.MOVE     -> "tool.move"
         ToolId.ROTATE   -> "tool.rotate"
         ToolId.SCALE    -> "tool.scale"
-        ToolId.OPACITY  -> "tool.opacity"
         ToolId.COLORIZE -> "tool.colorize"
     }
 }

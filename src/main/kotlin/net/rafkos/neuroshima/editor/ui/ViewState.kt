@@ -3,7 +3,7 @@ package net.rafkos.neuroshima.editor.ui
 import java.util.UUID
 import net.rafkos.neuroshima.editor.model.TokenSide
 
-enum class ToolId { SELECT, MOVE, ROTATE, SCALE, OPACITY, COLORIZE }
+enum class ToolId { SELECT, MOVE, ROTATE, SCALE, COLORIZE }
 
 class ViewState {
 
