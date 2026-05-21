@@ -42,6 +42,7 @@ class AppContext(
         private set
 
     val previewService: PreviewService = PreviewService(bag, tokenRenderer)
+    val clipboard: LayerClipboard = LayerClipboard()
 
     private val persistentBagListeners: MutableList<(ModelEvent) -> Unit> = mutableListOf()
     private val bagReplacedListeners: MutableList<() -> Unit> = mutableListOf()
