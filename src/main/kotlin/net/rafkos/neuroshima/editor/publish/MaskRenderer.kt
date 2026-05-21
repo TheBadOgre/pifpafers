@@ -44,6 +44,7 @@ class MaskRenderer {
         try {
             val tx = AffineTransform()
             tx.translate(placement.centerXPx, placement.centerYPx)
+            if (token.kind == TokenKind.UNIT) tx.rotate(Math.PI / 2)
             tx.scale(scale, scale)
             tx.translate(-(bounds.x + bounds.width / 2.0), -(bounds.y + bounds.height / 2.0))
             g.transform(tx)

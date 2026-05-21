@@ -50,6 +50,7 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
                 publishItem.isEnabled = ctx.bag.tokens.isNotEmpty()
             }
         }
+        ctx.addBagReplacedListener { publishItem.isEnabled = ctx.bag.tokens.isNotEmpty() }
         m.add(publishItem)
         return m
     }

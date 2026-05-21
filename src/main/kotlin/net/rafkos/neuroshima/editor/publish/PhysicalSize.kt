@@ -21,9 +21,9 @@ object PhysicalSize {
     val BLEED_PX: Int = TokenShape.BLEED_PX
 
     val HEX_BLEED_WIDTH_MM: Double =
-        HEX_TIGHT_WIDTH_MM * (UnitTokenShape.boundingW + 2.0 * BLEED_PX) / UnitTokenShape.boundingW
+        HEX_TIGHT_WIDTH_MM * UnitTokenShape.bleedShape().bounds.width.toDouble() / UnitTokenShape.boundingW
     val HEX_BLEED_HEIGHT_MM: Double =
-        HEX_TIGHT_HEIGHT_MM * (UnitTokenShape.boundingH + 2.0 * BLEED_PX) / UnitTokenShape.boundingH
+        HEX_TIGHT_HEIGHT_MM * UnitTokenShape.bleedShape().bounds.height.toDouble() / UnitTokenShape.boundingH
 
     val CIRCLE_BLEED_DIAMETER_MM: Double =
         CIRCLE_DIAMETER_MM * (ModifierTokenShape.boundingW + 2.0 * BLEED_PX) / ModifierTokenShape.boundingW

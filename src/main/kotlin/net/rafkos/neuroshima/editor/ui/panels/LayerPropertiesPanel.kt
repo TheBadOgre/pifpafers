@@ -29,7 +29,8 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
     init {
         layout = BorderLayout()
         border = BorderFactory.createTitledBorder(ctx.locale.t("panel.properties"))
-        add(JScrollPane(content).apply { border = null }, BorderLayout.CENTER)
+        val contentWrapper = JPanel(BorderLayout()).apply { add(content, BorderLayout.NORTH) }
+        add(JScrollPane(contentWrapper).apply { border = null }, BorderLayout.CENTER)
         val resetHolder = JPanel(BorderLayout()).apply {
             isOpaque = true
             border = BorderFactory.createEmptyBorder(8, 4, 4, 4)

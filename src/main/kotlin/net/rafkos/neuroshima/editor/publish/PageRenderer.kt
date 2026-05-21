@@ -2,6 +2,7 @@ package net.rafkos.neuroshima.editor.publish
 
 import net.rafkos.neuroshima.editor.assets.ImageCache
 import net.rafkos.neuroshima.editor.model.Token
+import net.rafkos.neuroshima.editor.model.TokenKind
 import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.render.AffineBuilder
 import net.rafkos.neuroshima.editor.render.LOGICAL_CANVAS_H
@@ -27,12 +28,12 @@ class PageRenderer(private val imageCache: ImageCache) {
     ): BufferedImage {
         val effectiveSide = if (token.sameSides && side == TokenSide.BACK) TokenSide.FRONT else side
         val shape = TokenShape.forKind(token.kind)
+        val bleedBounds = shape.bleedShape().bounds
+        val srcW = bleedBounds.width
+        val srcH = bleedBounds.height
+        val srcX0 = bleedBounds.x
+        val srcY0 = bleedBounds.y
         val clip = if (renderBleed) shape.bleedShape() else shape.clipShape()
-        val clipBounds = clip.bounds
-        val srcW = clipBounds.width
-        val srcH = clipBounds.height
-        val srcX0 = clipBounds.x
-        val srcY0 = clipBounds.y
 
         val out = BufferedImage(targetPx, targetPx, BufferedImage.TYPE_INT_ARGB)
         val g = out.createGraphics()
@@ -81,6 +82,15 @@ class PageRenderer(private val imageCache: ImageCache) {
         } finally {
             g.dispose()
         }
-        return out
+        if (token.kind != TokenKind.UNIT) return out
+        val rotated = BufferedImage(targetPx, targetPx, BufferedImage.TYPE_INT_ARGB)
+        val gr = rotated.createGraphics()
+        try {
+            gr.rotate(Math.PI / 2, targetPx / 2.0, targetPx / 2.0)
+            gr.drawImage(out, 0, 0, null)
+        } finally {
+            gr.dispose()
+        }
+        return rotated
     }
 }

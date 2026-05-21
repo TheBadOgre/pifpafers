@@ -88,6 +88,7 @@ class AppContext(
                 is ModelEvent.LayerRemoved -> event.tokenId
                 is ModelEvent.LayerReordered -> event.tokenId
                 is ModelEvent.LayerPropsChanged -> event.tokenId
+                is ModelEvent.SameSidesChanged -> event.tokenId
                 else -> null
             }
             if (touchedToken != null) {

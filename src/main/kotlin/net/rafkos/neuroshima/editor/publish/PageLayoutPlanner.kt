@@ -26,7 +26,9 @@ class PageLayoutPlanner(
         val hexWPx = mmToPx(HEX_BLEED_WIDTH_MM, settings.dpi)
         val hexHPx = mmToPx(HEX_BLEED_HEIGHT_MM, settings.dpi)
         val circleDPx = mmToPx(CIRCLE_BLEED_DIAMETER_MM, settings.dpi)
-        val hexRowPitch = (hexHPx * 0.75).toInt()
+        // After 90° rotation UNIT hexes are pointy-top: horizontal pitch = flat-to-flat (hexHPx),
+        // vertical pitch = 0.75 × diagonal (hexWPx).
+        val hexRowPitch = (hexWPx * 0.75).toInt()
 
         val sorted = tokens.sortedBy { if (it.kind == TokenKind.UNIT) 0 else 1 }
 
@@ -43,12 +45,12 @@ class PageLayoutPlanner(
         var rowOffsetX = false
 
         fun rowItemHeight(kind: TokenKind): Int = when (kind) {
-            TokenKind.UNIT -> hexHPx
+            TokenKind.UNIT -> hexWPx
             TokenKind.MODIFIER -> circleDPx
         }
 
         fun rowItemPitch(kind: TokenKind): Int = when (kind) {
-            TokenKind.UNIT -> hexWPx
+            TokenKind.UNIT -> hexHPx
             TokenKind.MODIFIER -> circleDPx
         }
 

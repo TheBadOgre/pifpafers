@@ -94,7 +94,7 @@ class MainFrame(val ctx: AppContext) : JFrame() {
         layout = BorderLayout()
 
         val rightStack = JSplitPane(JSplitPane.VERTICAL_SPLIT, layersPanel, propertiesPanel).apply {
-            resizeWeight = 0.5
+            resizeWeight = 0.75
             isContinuousLayout = true
         }
         val toolAndRight = JPanel(BorderLayout()).apply {

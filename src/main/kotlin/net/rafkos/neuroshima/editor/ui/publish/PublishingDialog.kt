@@ -26,6 +26,7 @@ import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JOptionPane
 import javax.swing.JRadioButtonMenuItem
+import javax.swing.JScrollPane
 import javax.swing.SwingWorker
 import javax.swing.filechooser.FileNameExtensionFilter
 
@@ -39,7 +40,12 @@ class PublishingDialog(
     init {
         defaultCloseOperation = DISPOSE_ON_CLOSE
         layout = BorderLayout()
-        add(preview, BorderLayout.CENTER)
+        val scroll = JScrollPane(preview).apply {
+            horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+            verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
+            getViewport().background = preview.background
+        }
+        add(scroll, BorderLayout.CENTER)
         jMenuBar = buildMenuBar()
         addWindowListener(object : WindowAdapter() {
             override fun windowClosing(e: WindowEvent) { dispose() }
