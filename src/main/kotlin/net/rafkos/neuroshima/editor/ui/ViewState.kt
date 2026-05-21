@@ -22,7 +22,7 @@ class ViewState {
     var zoom: Float = 0.5f
         private set
 
-    var showOverlay: Boolean = true
+    var showOverlay: Boolean = false
         private set
 
     var collectionThumbSize: Int = 96

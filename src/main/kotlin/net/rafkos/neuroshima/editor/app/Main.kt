@@ -10,8 +10,7 @@ fun main() {
     UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
 
     val bundledRoot = AppDirs.assetsRoot.toPath()
-    val userRoot = Paths.get(System.getProperty("user.home"))
-        .resolve(".neuroshima-editor").resolve("content")
+    val userRoot = AppDirs.userContentRoot.toPath()
     val prefsFile = Paths.get(System.getProperty("user.home"))
         .resolve(".neuroshima-editor").resolve("prefs.json")
 

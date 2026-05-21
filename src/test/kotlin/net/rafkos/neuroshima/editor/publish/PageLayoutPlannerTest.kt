@@ -4,6 +4,10 @@ import net.rafkos.neuroshima.editor.model.PageFormat
 import net.rafkos.neuroshima.editor.model.PublishSettings
 import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.model.TokenKind
+import net.rafkos.neuroshima.editor.publish.PhysicalSize.CIRCLE_BLEED_DIAMETER_MM
+import net.rafkos.neuroshima.editor.publish.PhysicalSize.HEX_BLEED_HEIGHT_MM
+import net.rafkos.neuroshima.editor.publish.PhysicalSize.HEX_BLEED_WIDTH_MM
+import net.rafkos.neuroshima.editor.publish.PhysicalSize.mmToPx
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -62,6 +66,25 @@ class PageLayoutPlannerTest {
         val maxHexY = front.placements.filter { it.token.kind == TokenKind.UNIT }.maxOf { it.centerYPx }
         val minCircleY = front.placements.filter { it.token.kind == TokenKind.MODIFIER }.minOf { it.centerYPx }
         assertTrue(maxHexY < minCircleY)
+    }
+
+    @Test
+    fun `hex and circle rows do not overlap vertically`() {
+        val tokens = (0 until 6).map { newToken(TokenKind.UNIT, it) } +
+            (6 until 12).map { newToken(TokenKind.MODIFIER, it) }
+        val settings = PublishSettings()
+        val plans = PageLayoutPlanner(settings, tokens).plan()
+        val front = plans[0]
+        val hexHalfH = mmToPx(HEX_BLEED_WIDTH_MM, settings.dpi) / 2.0
+        val circleHalfD = mmToPx(CIRCLE_BLEED_DIAMETER_MM, settings.dpi) / 2.0
+        val hexBottoms = front.placements.filter { it.token.kind == TokenKind.UNIT }
+            .map { it.centerYPx + hexHalfH }
+        val circleTops = front.placements.filter { it.token.kind == TokenKind.MODIFIER }
+            .map { it.centerYPx - circleHalfD }
+        val maxHexBottom = hexBottoms.max()
+        val minCircleTop = circleTops.min()
+        assertTrue(maxHexBottom <= minCircleTop,
+            "hex bottom $maxHexBottom must not exceed circle top $minCircleTop")
     }
 
     @Test

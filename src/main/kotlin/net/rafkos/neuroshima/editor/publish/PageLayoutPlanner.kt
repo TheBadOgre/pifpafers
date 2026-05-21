@@ -55,11 +55,15 @@ class PageLayoutPlanner(
         }
 
         fun newRow(kind: TokenKind) {
-            val pitch = when (kind) {
-                TokenKind.UNIT -> hexRowPitch
-                TokenKind.MODIFIER -> circleDPx
+            val previous = rowKind
+            val advance = when {
+                previous == null -> 0
+                previous == TokenKind.UNIT && kind == TokenKind.UNIT -> hexRowPitch
+                previous == TokenKind.MODIFIER && kind == TokenKind.MODIFIER -> circleDPx
+                previous == TokenKind.UNIT -> hexWPx
+                else -> circleDPx
             }
-            if (rowKind != null) rowY += pitch
+            rowY += advance
             rowKind = kind
             rowItemIndex = 0
             rowIndex += 1

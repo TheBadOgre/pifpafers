@@ -144,7 +144,7 @@ This section hold information mostly about the army after printing.
 
 Two roots merged into one virtual tree:
 - `bundled://` → `<app>/assets/` (read-only, ships with app). Scanned once at startup.
-- `user://` → `<user_home>/.neuroshima-editor/content/` (writable, created on first launch). **Refresh content** button rescans.
+- `user://` → on Windows: `<install_root>/content/` (next to `assets/`); other OSes: `<user_home>/.neuroshima-editor/content/`. Writable, created on first use. Path resolved by `AppDirs.userContentRoot`. **Refresh content** button rescans.
 - **Conflict rule**: bundled wins; user copy hidden + warning logged. Same relative path = same image across machines.
 - **PNG only** (alpha required). Other files ignored + logged.
 - Double-click or drag → adds new `Layer` on top of active token, centered, default props. Drop position ignored.
