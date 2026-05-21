@@ -49,8 +49,8 @@ ui/ ──► persistence/, prefs/, i18n/
 ### Package map
 
 ```
-app/         Main, AppContext (DI/wiring + bag/history/imageCache/processedCache/previewService/canvasMapper), AppDirs
-model/       Token, Layer, LayerProperties, TokenBag, AssetPath (sealed: Bundled|User), ModelEvent
+app/         Main, AppContext (DI/wiring + bag/history/imageCache/processedCache/previewService/canvasMapper/clipboard), AppDirs, LayerClipboard
+model/       Token, Layer, LayerProperties, LayerSnapshot, TokenBag, AssetPath (sealed: Bundled|User), ModelEvent
 persistence/ JsonBagStore (.box save/load, atomic write), BagOpener, BagDto, MissingAssetsException
 assets/      AssetLibrary (bundled+user merged tree), ImageCache (LinkedHashMap LRU + SoftReference, bound 256),
              ImagePreloader, AssetTreeNode
@@ -162,7 +162,7 @@ Two roots merged into one virtual tree:
 - Bindings: `Ctrl+Z` undo, `Ctrl+Y` redo. Menu items disabled when the stack is empty.
 
 Concrete commands on disk:
-`AddTokenCommand`, `RemoveTokenCommand`, `DuplicateTokenCommand`, `AddLayerCommand`, `RemoveLayerCommand`, `DuplicateLayerCommand`, `ReorderLayerCommand`, `SetLayerPropertyCommand` (one per `LayerProperty` enum value), `MultiLayerPropertyCommand` (tool drags affecting multi-selected layers), `ColorizeCommand`, `SetSameSidesCommand`.
+`AddTokenCommand`, `RemoveTokenCommand`, `DuplicateTokenCommand`, `AddLayerCommand`, `RemoveLayerCommand`, `DuplicateLayerCommand`, `ReorderLayerCommand`, `SetLayerPropertyCommand` (one per `LayerProperty` enum value), `MultiLayerPropertyCommand` (tool drags affecting multi-selected layers), `ColorizeCommand`, `SetSameSidesCommand`, `PasteLayersCommand`.
 
 Two-sided notes:
 - Every layer-targeting command (`AddLayerCommand`, `RemoveLayerCommand`, `DuplicateLayerCommand`, `ReorderLayerCommand`, `SetLayerPropertyCommand`) takes a `side: TokenSide` parameter.
