@@ -17,14 +17,18 @@ import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.awt.image.BufferedImage
 import java.nio.file.Path
+import javax.swing.BorderFactory
 import javax.swing.ButtonGroup
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.JDialog
 import javax.swing.JFileChooser
+import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JOptionPane
+import javax.swing.JPanel
+import javax.swing.JProgressBar
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.JScrollPane
 import javax.swing.SwingWorker
@@ -36,6 +40,7 @@ class PublishingDialog(
 ) : JDialog(owner, ctx.locale.t("dialog.publish.title"), Dialog.ModalityType.APPLICATION_MODAL) {
 
     private val preview = PagePreviewPanel()
+    private var previewWorker: SwingWorker<*, *>? = null
 
     init {
         defaultCloseOperation = DISPOSE_ON_CLOSE
@@ -53,6 +58,24 @@ class PublishingDialog(
         size = Dimension(960, 700)
         setLocationRelativeTo(owner)
         rebuildPreview()
+    }
+
+    private fun buildProgressDialog(message: String): JDialog {
+        val pd = JDialog(this, ctx.locale.t("dialog.progress.title"), Dialog.ModalityType.APPLICATION_MODAL)
+        pd.defaultCloseOperation = JDialog.DO_NOTHING_ON_CLOSE
+        pd.isResizable = false
+        val panel = JPanel(BorderLayout(0, 10))
+        panel.border = BorderFactory.createEmptyBorder(20, 30, 20, 30)
+        panel.add(JLabel(message), BorderLayout.NORTH)
+        val bar = JProgressBar().apply {
+            isIndeterminate = true
+            preferredSize = Dimension(300, preferredSize.height)
+        }
+        panel.add(bar, BorderLayout.CENTER)
+        pd.contentPane = panel
+        pd.pack()
+        pd.setLocationRelativeTo(this)
+        return pd
     }
 
     private fun buildMenuBar(): JMenuBar {
@@ -121,22 +144,41 @@ class PublishingDialog(
     }
 
     private fun rebuildPreview() {
+        previewWorker?.cancel(true)
         val settings = ctx.bag.printSettings
-        val plans = PageLayoutPlanner(settings, ctx.bag.tokens).plan()
-        val raster = PageRasterizer(PageRenderer(ctx.imageCache))
-        val thumbs = plans.map { plan ->
-            val scale = 240.0 / plan.widthPx
-            val low = BufferedImage(240, (plan.heightPx * scale).toInt(), BufferedImage.TYPE_INT_RGB)
-            val g = low.createGraphics()
-            try {
-                val full = raster.rasterizePage(plan, settings)
-                g.drawImage(full, 0, 0, low.width, low.height, null)
-            } finally {
-                g.dispose()
+        val tokens = ctx.bag.tokens.toList()
+        val imageCache = ctx.imageCache
+        val progressDialog = buildProgressDialog(ctx.locale.t("dialog.progress.preview"))
+
+        val worker = object : SwingWorker<List<BufferedImage>, Unit>() {
+            override fun doInBackground(): List<BufferedImage> {
+                val plans = PageLayoutPlanner(settings, tokens).plan()
+                val raster = PageRasterizer(PageRenderer(imageCache))
+                return plans.mapNotNull { plan ->
+                    if (isCancelled) return@mapNotNull null
+                    val scale = 240.0 / plan.widthPx
+                    val low = BufferedImage(240, (plan.heightPx * scale).toInt(), BufferedImage.TYPE_INT_RGB)
+                    val g = low.createGraphics()
+                    try {
+                        val full = raster.rasterizePage(plan, settings)
+                        g.drawImage(full, 0, 0, low.width, low.height, null)
+                    } finally {
+                        g.dispose()
+                    }
+                    low
+                }
             }
-            low
+
+            override fun done() {
+                progressDialog.dispose()
+                if (!isCancelled) {
+                    try { preview.setPages(get()) } catch (_: Exception) {}
+                }
+            }
         }
-        preview.setPages(thumbs)
+        previewWorker = worker
+        worker.execute()
+        progressDialog.isVisible = true
     }
 
     private fun exportPng() {
@@ -150,30 +192,33 @@ class PublishingDialog(
             null,
             ctx.bag.name.ifBlank { "army" },
         ) as? String ?: return
-        runExport {
-            val plans = PageLayoutPlanner(ctx.bag.printSettings, ctx.bag.tokens).plan()
-            val rasterizer = PageRasterizer(PageRenderer(ctx.imageCache))
-            val maskRenderer = MaskRenderer()
-            val exporter = PngExporter(rasterizer, maskRenderer)
-            exporter.export(ctx.bag, plans, dir, baseName, overwrite = true)
+        val progressDialog = buildProgressDialog(ctx.locale.t("dialog.progress.export.png"))
+        val worker = object : SwingWorker<Unit, Unit>() {
+            override fun doInBackground() {
+                val plans = PageLayoutPlanner(ctx.bag.printSettings, ctx.bag.tokens).plan()
+                val rasterizer = PageRasterizer(PageRenderer(ctx.imageCache))
+                val exporter = PngExporter(rasterizer, MaskRenderer())
+                exporter.export(ctx.bag, plans, dir, baseName, overwrite = true)
+            }
+            override fun done() { progressDialog.dispose() }
         }
+        worker.execute()
+        progressDialog.isVisible = true
     }
 
     private fun exportPdf() {
         val target = choosePdfFile() ?: return
-        runExport {
-            val plans = PageLayoutPlanner(ctx.bag.printSettings, ctx.bag.tokens).plan()
-            val rasterizer = PageRasterizer(PageRenderer(ctx.imageCache))
-            PdfExporter(rasterizer).export(ctx.bag, plans, target)
-        }
-    }
-
-    private fun runExport(work: () -> Unit) {
+        val progressDialog = buildProgressDialog(ctx.locale.t("dialog.progress.export.pdf"))
         val worker = object : SwingWorker<Unit, Unit>() {
-            override fun doInBackground() { work() }
-            override fun done() {}
+            override fun doInBackground() {
+                val plans = PageLayoutPlanner(ctx.bag.printSettings, ctx.bag.tokens).plan()
+                val rasterizer = PageRasterizer(PageRenderer(ctx.imageCache))
+                PdfExporter(rasterizer).export(ctx.bag, plans, target)
+            }
+            override fun done() { progressDialog.dispose() }
         }
         worker.execute()
+        progressDialog.isVisible = true
     }
 
     private fun chooseDirectory(): Path? {
