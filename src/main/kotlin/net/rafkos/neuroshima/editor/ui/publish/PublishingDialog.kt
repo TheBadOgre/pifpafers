@@ -170,19 +170,39 @@ class PublishingDialog(
             dialogTitle = ctx.locale.t("chooser.export.images.title")
             approveButtonText = ctx.locale.t("chooser.export.images.approve")
             fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+            ctx.lastImagesDir?.let { currentDirectory = java.io.File(it) }
         }
         if (chooser.showDialog(this, null) != JFileChooser.APPROVE_OPTION) return null
-        return chooser.selectedFile.toPath()
+        val path = chooser.selectedFile.toPath()
+        ctx.lastImagesDir = path.toString()
+        ctx.savePrefs()
+        return path
     }
 
     private fun choosePdfFile(): Path? {
         val chooser = JFileChooser().apply {
             dialogTitle = ctx.locale.t("chooser.export.pdf.title")
             fileFilter = FileNameExtensionFilter(ctx.locale.t("filter.pdf.description"), "pdf")
+            ctx.lastPdfDir?.let { currentDirectory = java.io.File(it) }
         }
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return null
         val raw = chooser.selectedFile
         val withExt = if (raw.extension.equals("pdf", ignoreCase = true)) raw else java.io.File("${raw.absolutePath}.pdf")
+        if (withExt.exists()) {
+            val result = JOptionPane.showOptionDialog(
+                this,
+                ctx.locale.t("dialog.overwrite.message", withExt.name),
+                ctx.locale.t("dialog.overwrite.title"),
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null,
+                arrayOf(ctx.locale.t("dialog.overwrite"), ctx.locale.t("dialog.cancel")),
+                ctx.locale.t("dialog.cancel"),
+            )
+            if (result != 0) return null
+        }
+        ctx.lastPdfDir = withExt.parentFile?.absolutePath
+        ctx.savePrefs()
         return withExt.toPath()
     }
 }

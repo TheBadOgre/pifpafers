@@ -7,5 +7,8 @@ data class UserPreferences(
     val collectionThumbSize: Int = 96,
     val layersThumbSize: Int = 64,
     val assetsThumbSize: Int = 64,
-    val lastOpenedBag: String? = null,
+    val lastFile: String? = null,
+    val lastBoxDir: String? = null,
+    val lastImagesDir: String? = null,
+    val lastPdfDir: String? = null,
 )

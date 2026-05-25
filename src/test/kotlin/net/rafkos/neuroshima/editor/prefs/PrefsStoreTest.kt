@@ -15,7 +15,10 @@ class PrefsStoreTest {
             collectionThumbSize = 128,
             layersThumbSize = 96,
             assetsThumbSize = 80,
-            lastOpenedBag = "C:/Users/me/army.box",
+            lastFile = "C:/Users/me/army.box",
+            lastBoxDir = "C:/Users/me",
+            lastImagesDir = "C:/Users/me/exports",
+            lastPdfDir = "C:/Users/me/pdf",
         )
         store.save(original)
         val loaded = store.load()
@@ -34,6 +37,19 @@ class PrefsStoreTest {
         assertEquals(96, p.collectionThumbSize)
         assertEquals(64, p.layersThumbSize)
         assertEquals(64, p.assetsThumbSize)
-        assertEquals(null, p.lastOpenedBag)
+        assertEquals(null, p.lastFile)
+        assertEquals(null, p.lastBoxDir)
+        assertEquals(null, p.lastImagesDir)
+        assertEquals(null, p.lastPdfDir)
+    }
+
+    @Test
+    fun `unknown keys in json are ignored`(@TempDir tmp: Path) {
+        val file = tmp.resolve("prefs.json")
+        file.toFile().writeText("""{"collectionThumbSize":128,"lastOpenedBag":"/old/army.box","unknownKey":42}""")
+        val store = PrefsStore(file)
+        val loaded = store.load()
+        assertEquals(128, loaded.collectionThumbSize)
+        assertEquals(null, loaded.lastFile)
     }
 }

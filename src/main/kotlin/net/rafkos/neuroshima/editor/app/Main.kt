@@ -19,6 +19,7 @@ fun main() {
     SwingUtilities.invokeLater {
         val frame = MainFrame(ctx)
         frame.isVisible = true
+        ctx.startupFile?.let { frame.menuBuilder.openFile(it) }
         Runtime.getRuntime().addShutdownHook(Thread { ctx.savePrefs() })
     }
 }

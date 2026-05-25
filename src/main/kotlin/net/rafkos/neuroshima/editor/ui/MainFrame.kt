@@ -39,6 +39,7 @@ class MainFrame(val ctx: AppContext) : JFrame() {
     val statusBar: JPanel = StatusBar(ctx)
 
     val canvasComponent: TokenCanvasPanel = TokenCanvasPanel(ctx)
+    val menuBuilder: MenuBuilder = MenuBuilder(ctx, this)
 
     init { ctx.canvasMapper = canvasComponent.mapper }
 
@@ -140,7 +141,6 @@ class MainFrame(val ctx: AppContext) : JFrame() {
 
         ToolController(ctx, canvasComponent)
 
-        val menuBuilder = MenuBuilder(ctx, this)
         jMenuBar = menuBuilder.build()
 
         addWindowListener(object : WindowAdapter() {

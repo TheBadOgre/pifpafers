@@ -8,6 +8,7 @@ import net.rafkos.neuroshima.editor.model.ModelEvent
 import net.rafkos.neuroshima.editor.model.TokenBag
 import net.rafkos.neuroshima.editor.prefs.PrefsStore
 import net.rafkos.neuroshima.editor.prefs.UserPreferences
+import java.io.File
 import net.rafkos.neuroshima.editor.render.ProcessedLayerCache
 import net.rafkos.neuroshima.editor.render.ThumbnailRenderer
 import net.rafkos.neuroshima.editor.render.TokenRenderer
@@ -54,11 +55,21 @@ class AppContext(
 
     fun addBagReplacedListener(l: () -> Unit) { bagReplacedListeners += l }
 
+    var lastBoxDir: String? = null
+    var lastImagesDir: String? = null
+    var lastPdfDir: String? = null
+    val startupFile: Path?
+
     init {
         val prefs = prefsStore.load()
         viewState.setCollectionThumbSize(prefs.collectionThumbSize)
         viewState.setLayersThumbSize(prefs.layersThumbSize)
         viewState.setAssetsThumbSize(prefs.assetsThumbSize)
+        lastBoxDir = prefs.lastBoxDir?.takeIf { File(it).isDirectory }
+        lastImagesDir = prefs.lastImagesDir?.takeIf { File(it).isDirectory }
+        lastPdfDir = prefs.lastPdfDir?.takeIf { File(it).isDirectory }
+        startupFile = prefs.lastFile?.let { java.nio.file.Paths.get(it) }
+            ?.takeIf { java.nio.file.Files.isRegularFile(it) }
         bag.addListener { dirty = true }
         installInvalidationListener(bag)
     }
@@ -113,7 +124,10 @@ class AppContext(
                 collectionThumbSize = viewState.collectionThumbSize,
                 layersThumbSize = viewState.layersThumbSize,
                 assetsThumbSize = viewState.assetsThumbSize,
-                lastOpenedBag = currentFile?.toString(),
+                lastFile = currentFile?.toString(),
+                lastBoxDir = lastBoxDir,
+                lastImagesDir = lastImagesDir,
+                lastPdfDir = lastPdfDir,
             )
         )
     }

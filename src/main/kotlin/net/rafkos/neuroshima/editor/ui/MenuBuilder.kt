@@ -138,6 +138,7 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
         JsonBagStore(assetResolver = ctx.library::assetExists).save(ctx.bag, file)
         ctx.markClean()
         ctx.history.clear()
+        ctx.savePrefs()
         return true
     }
 
@@ -145,14 +146,18 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
         val chooser = JFileChooser().apply {
             dialogTitle = ctx.locale.t("chooser.save.army.title")
             fileFilter = FileNameExtensionFilter(ctx.locale.t("filter.box.description"), "box")
+            ctx.lastBoxDir?.let { currentDirectory = File(it) }
         }
         if (chooser.showSaveDialog(frame) != JFileChooser.APPROVE_OPTION) return false
         val raw: File = chooser.selectedFile
         val path = if (raw.extension.equals("box", ignoreCase = true)) raw.toPath()
             else File("${raw.absolutePath}.box").toPath()
+        if (path.toFile().exists() && !confirmOverwrite(path.fileName.toString())) return false
         JsonBagStore(assetResolver = ctx.library::assetExists).save(ctx.bag, path)
         ctx.markClean()
         ctx.history.clear()
+        ctx.lastBoxDir = path.parent?.toString()
+        ctx.savePrefs()
         frame.title = "${ctx.locale.t("app.title")} — ${path.fileName}"
         return true
     }
@@ -161,13 +166,33 @@ class MenuBuilder(private val ctx: AppContext, private val frame: MainFrame) {
         val chooser = JFileChooser().apply {
             dialogTitle = ctx.locale.t("chooser.open.army.title")
             fileFilter = FileNameExtensionFilter(ctx.locale.t("filter.box.description"), "box")
+            ctx.lastBoxDir?.let { currentDirectory = File(it) }
         }
         if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) return
-        val path = chooser.selectedFile.toPath()
+        openFile(chooser.selectedFile.toPath())
+    }
+
+    private fun confirmOverwrite(fileName: String): Boolean {
+        val result = JOptionPane.showOptionDialog(
+            frame,
+            ctx.locale.t("dialog.overwrite.message", fileName),
+            ctx.locale.t("dialog.overwrite.title"),
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE,
+            null,
+            arrayOf(ctx.locale.t("dialog.overwrite"), ctx.locale.t("dialog.cancel")),
+            ctx.locale.t("dialog.cancel"),
+        )
+        return result == 0
+    }
+
+    fun openFile(path: java.nio.file.Path) {
         val opener = net.rafkos.neuroshima.editor.persistence.BagOpener(ctx.library, ctx.imageCache)
         try {
             val loaded = runBlocking { opener.open(path) }
             ctx.replaceBag(loaded, path)
+            ctx.lastBoxDir = path.parent?.toString()
+            ctx.savePrefs()
             frame.title = "${ctx.locale.t("app.title")} — ${path.fileName}"
         } catch (ex: MissingAssetsException) {
             MissingAssetsDialog.show(
