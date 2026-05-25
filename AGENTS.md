@@ -113,8 +113,8 @@ TokenBag(name: String, schemaVersion: Int, tokens: MutableList<Token>, printSett
 This section hold information mostly about the army after printing.
 
 ### Real world dimensions
-- The hexagonal token has 6 edges of 1,8cm each when printed/physically (regular hexagon). The longest diagonal is 3,6cm.
-- The circular token has a diameter of 1,8cm when printed/physically.
+- The hexagonal token has 6 edges of 1,85cm each when printed/physically (regular hexagon). The longest diagonal is 3,7cm.
+- The circular token has a diameter of 1,85cm when printed/physically.
 
 ### Real world tips
 - Each token has a bleeding/overlay when printed, this is to make sure no "white" color is visible if token was slightly misaligned during cutting.
@@ -254,7 +254,7 @@ When adding a feature: add tests in the matching package directory under `src/te
 
 ## Maintenance Rule for This File
 
-**Update this `CLAUDE.md` whenever you:**
+**Update this `AGENTS.md` whenever you:**
 - Add/move/rename a package or significant component.
 - Change a `PackageBoundaryTest` rule.
 - Add/remove/rename a `Command`, model field, or `ModelEvent` kind.

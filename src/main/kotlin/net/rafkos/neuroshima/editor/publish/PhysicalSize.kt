@@ -5,10 +5,10 @@ import net.rafkos.neuroshima.editor.render.TokenShape
 import net.rafkos.neuroshima.editor.render.UnitTokenShape
 
 object PhysicalSize {
-    const val HEX_EDGE_MM: Double = 18.0
-    const val HEX_DIAGONAL_MM: Double = 36.0
+    const val HEX_EDGE_MM: Double = 18.5
+    const val HEX_DIAGONAL_MM: Double = 37.0
     val HEX_FLAT_TO_FLAT_MM: Double = Math.sqrt(3.0) * HEX_EDGE_MM
-    const val CIRCLE_DIAMETER_MM: Double = 18.0
+    const val CIRCLE_DIAMETER_MM: Double = 18.5
 
     const val MARGIN_MM: Double = 5.0
 

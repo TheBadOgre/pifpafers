@@ -13,6 +13,7 @@ import java.awt.AlphaComposite
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.RenderingHints
+import java.awt.geom.Area
 import java.awt.image.BufferedImage
 import kotlin.math.max
 
@@ -71,13 +72,20 @@ class PageRenderer(private val imageCache: ImageCache) {
             g.clip = savedClip
 
             if (drawCutLine) {
-                val cutPx = max(1, dpi / 150)
-                val saved = g.composite
-                g.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f)
+                // Stroke is double the visible width; clipping to bleed-minus-clip annulus
+                // ensures only the outer half is painted, keeping the line fully outside the token.
+                val strokePx = max(4, dpi / 30)
+                val outsideArea = Area(shape.bleedShape())
+                outsideArea.subtract(Area(shape.clipShape()))
+                val savedComposite = g.composite
+                val savedClipInner = g.clip
+                g.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f)
                 g.color = Color.BLACK
-                g.stroke = BasicStroke(cutPx.toFloat())
+                g.stroke = BasicStroke(strokePx.toFloat(), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER)
+                g.clip = outsideArea
                 g.draw(shape.clipShape())
-                g.composite = saved
+                g.clip = savedClipInner
+                g.composite = savedComposite
             }
         } finally {
             g.dispose()

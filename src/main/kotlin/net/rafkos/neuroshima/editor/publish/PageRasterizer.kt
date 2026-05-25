@@ -5,6 +5,7 @@ import net.rafkos.neuroshima.editor.model.TokenKind
 import net.rafkos.neuroshima.editor.model.TokenSide
 import java.awt.Color
 import java.awt.RenderingHints
+import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
 
 class PageRasterizer(private val pageRenderer: PageRenderer) {
@@ -28,12 +29,18 @@ class PageRasterizer(private val pageRenderer: PageRenderer) {
                 val img = pageRenderer.renderTokenForPrint(
                     token, side, targetPx,
                     renderBleed = settings.renderOverlay,
-                    drawCutLine = settings.renderOverlay,
+                    drawCutLine = settings.renderOverlay && !plan.isBackPage,
                     dpi = settings.dpi,
                 )
                 val x = (placement.centerXPx - img.width / 2.0).toInt()
                 val y = (placement.centerYPx - img.height / 2.0).toInt()
-                g.drawImage(img, x, y, null)
+                if (plan.isBackPage && settings.invertBackSide) {
+                    val flipTx = AffineTransform.getTranslateInstance((x + img.width).toDouble(), y.toDouble())
+                    flipTx.scale(-1.0, 1.0)
+                    g.drawImage(img, flipTx, null)
+                } else {
+                    g.drawImage(img, x, y, null)
+                }
             }
         } finally {
             g.dispose()
