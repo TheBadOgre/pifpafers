@@ -35,9 +35,9 @@ class PageRasterizer(private val pageRenderer: PageRenderer) {
                 val x = (placement.centerXPx - img.width / 2.0).toInt()
                 val y = (placement.centerYPx - img.height / 2.0).toInt()
                 if (plan.isBackPage && settings.invertBackSide) {
-                    val flipTx = AffineTransform.getTranslateInstance((x + img.width).toDouble(), y.toDouble())
-                    flipTx.scale(-1.0, 1.0)
-                    g.drawImage(img, flipTx, null)
+                    val tx = AffineTransform.getTranslateInstance((x + img.width).toDouble(), (y + img.height).toDouble())
+                    tx.scale(-1.0, -1.0)
+                    g.drawImage(img, tx, null)
                 } else {
                     g.drawImage(img, x, y, null)
                 }
