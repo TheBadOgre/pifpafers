@@ -82,6 +82,17 @@ class PublishingDialog(
             fmtGroup.add(mi); m.add(mi)
         }
         m.addSeparator()
+        val marginGroup = ButtonGroup()
+        for ((marginMm, key) in listOf(
+            15.0 to "menu.publish.margin.15",
+            25.0 to "menu.publish.margin.25",
+            35.0 to "menu.publish.margin.35",
+        )) {
+            val mi = JRadioButtonMenuItem(ctx.locale.t(key), ctx.bag.printSettings.marginMm == marginMm)
+            mi.addActionListener { applySettings(ctx.bag.printSettings.copy(marginMm = marginMm)) }
+            marginGroup.add(mi); m.add(mi)
+        }
+        m.addSeparator()
         m.add(JCheckBoxMenuItem(ctx.locale.t("menu.publish.invert.back"), ctx.bag.printSettings.invertBackSide).apply {
             addActionListener { applySettings(ctx.bag.printSettings.copy(invertBackSide = isSelected)) }
         })

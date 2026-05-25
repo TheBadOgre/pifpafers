@@ -16,6 +16,7 @@ internal data class PublishSettingsDto(
     val pageFormat: String = "A4",
     val invertBackSide: Boolean = false,
     val renderOverlay: Boolean = true,
+    val marginMm: Double = 25.0,
 )
 
 @Serializable

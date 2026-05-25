@@ -6,7 +6,6 @@ import net.rafkos.neuroshima.editor.model.TokenKind
 import net.rafkos.neuroshima.editor.publish.PhysicalSize.CIRCLE_BLEED_DIAMETER_MM
 import net.rafkos.neuroshima.editor.publish.PhysicalSize.HEX_BLEED_HEIGHT_MM
 import net.rafkos.neuroshima.editor.publish.PhysicalSize.HEX_BLEED_WIDTH_MM
-import net.rafkos.neuroshima.editor.publish.PhysicalSize.MARGIN_MM
 import net.rafkos.neuroshima.editor.publish.PhysicalSize.mmToPx
 
 class PageLayoutPlanner(
@@ -19,7 +18,7 @@ class PageLayoutPlanner(
 
         val pageWidthPx = mmToPx(settings.pageFormat.widthMm, settings.dpi)
         val pageHeightPx = mmToPx(settings.pageFormat.heightMm, settings.dpi)
-        val marginPx = mmToPx(MARGIN_MM, settings.dpi)
+        val marginPx = mmToPx(settings.marginMm, settings.dpi)
         val usableW = pageWidthPx - 2 * marginPx
         val usableH = pageHeightPx - 2 * marginPx
 

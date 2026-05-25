@@ -95,6 +95,7 @@ class JsonBagStore(
         pageFormat = pageFormat.name,
         invertBackSide = invertBackSide,
         renderOverlay = renderOverlay,
+        marginMm = marginMm,
     )
 
     private fun PublishSettingsDto.toModel(): PublishSettings = PublishSettings(
@@ -102,6 +103,7 @@ class JsonBagStore(
         pageFormat = PageFormat.valueOf(pageFormat),
         invertBackSide = invertBackSide,
         renderOverlay = renderOverlay,
+        marginMm = marginMm,
     )
 
     private fun TokenDto.toModel(): Token {
