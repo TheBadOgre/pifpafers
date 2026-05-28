@@ -45,7 +45,7 @@ class PublishRoundTripTest {
     @Test
     fun `page layout planner produces at least one page for one token`(@TempDir tmp: Path) {
         val bag = TokenBag().apply { name = "test" }
-        val t = Token.createUnit().also { bag.addToken(it) }
+        Token.createUnit().also { bag.addToken(it) }
         val settings = PublishSettings(dpi = 150, pageFormat = PageFormat.A4)
         val plans = PageLayoutPlanner(settings, bag.tokens).plan()
         assertTrue(plans.isNotEmpty(), "Expected at least one page plan")

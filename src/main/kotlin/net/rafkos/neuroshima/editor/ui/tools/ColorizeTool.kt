@@ -3,7 +3,6 @@ package net.rafkos.neuroshima.editor.ui.tools
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.ColorizeCommand
 import net.rafkos.neuroshima.editor.model.LayerProperties
-import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.ui.dialogs.ColorizeDialog
 import java.awt.Component
 import java.awt.event.MouseEvent

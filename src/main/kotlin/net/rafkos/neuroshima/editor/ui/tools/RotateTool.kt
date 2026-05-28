@@ -3,7 +3,6 @@ package net.rafkos.neuroshima.editor.ui.tools
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.LayerProperty
 import net.rafkos.neuroshima.editor.command.MultiLayerPropertyCommand
-import net.rafkos.neuroshima.editor.model.TokenSide
 import java.awt.Cursor
 import java.awt.event.MouseEvent
 import kotlin.math.roundToInt

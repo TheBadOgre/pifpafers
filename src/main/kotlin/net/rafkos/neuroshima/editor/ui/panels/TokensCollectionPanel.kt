@@ -104,7 +104,7 @@ class TokensCollectionPanel(
         rebuild()
     }
 
-    private fun iconBtn(icon: javax.swing.ImageIcon, tooltip: String, action: () -> Unit) =
+    private fun iconBtn(icon: ImageIcon, tooltip: String, action: () -> Unit) =
         JButton(icon).apply {
             toolTipText = tooltip
             preferredSize = Dimension(BTN, BTN)

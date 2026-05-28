@@ -1,7 +1,6 @@
 package net.rafkos.neuroshima.editor.ui.tools
 
 import net.rafkos.neuroshima.editor.app.AppContext
-import net.rafkos.neuroshima.editor.model.TokenSide
 import net.rafkos.neuroshima.editor.render.AffineBuilder
 import net.rafkos.neuroshima.editor.ui.canvas.LOGICAL_CENTER_X
 import net.rafkos.neuroshima.editor.ui.canvas.LOGICAL_CENTER_Y

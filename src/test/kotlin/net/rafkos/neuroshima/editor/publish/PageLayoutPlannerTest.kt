@@ -5,7 +5,6 @@ import net.rafkos.neuroshima.editor.model.PublishSettings
 import net.rafkos.neuroshima.editor.model.Token
 import net.rafkos.neuroshima.editor.model.TokenKind
 import net.rafkos.neuroshima.editor.publish.PhysicalSize.CIRCLE_BLEED_DIAMETER_MM
-import net.rafkos.neuroshima.editor.publish.PhysicalSize.HEX_BLEED_HEIGHT_MM
 import net.rafkos.neuroshima.editor.publish.PhysicalSize.HEX_BLEED_WIDTH_MM
 import net.rafkos.neuroshima.editor.publish.PhysicalSize.mmToPx
 import java.util.UUID

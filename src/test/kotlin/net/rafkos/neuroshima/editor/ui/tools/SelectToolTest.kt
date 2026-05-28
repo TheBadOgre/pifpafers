@@ -1,7 +1,6 @@
 package net.rafkos.neuroshima.editor.ui.tools
 
 import net.rafkos.neuroshima.editor.app.AppContext
-import net.rafkos.neuroshima.editor.assets.ImageCache
 import net.rafkos.neuroshima.editor.model.AssetPath
 import net.rafkos.neuroshima.editor.model.Layer
 import net.rafkos.neuroshima.editor.model.LayerProperties
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.Color
-import java.awt.Point
 import java.awt.event.MouseEvent
 import java.awt.image.BufferedImage
 import java.nio.file.Path

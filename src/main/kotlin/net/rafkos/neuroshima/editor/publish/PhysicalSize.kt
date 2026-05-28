@@ -10,15 +10,13 @@ object PhysicalSize {
     val HEX_FLAT_TO_FLAT_MM: Double = Math.sqrt(3.0) * HEX_EDGE_MM
     const val CIRCLE_DIAMETER_MM: Double = 18.5
 
-    const val MARGIN_MM: Double = 5.0
-
     fun mmToPx(mm: Double, dpi: Int): Int = Math.round(mm * dpi / 25.4).toInt()
     fun mmToPt(mm: Double): Double = mm * 2.8346456692913
 
-    val HEX_TIGHT_WIDTH_MM: Double = HEX_DIAGONAL_MM
+    const val HEX_TIGHT_WIDTH_MM: Double = HEX_DIAGONAL_MM
     val HEX_TIGHT_HEIGHT_MM: Double = HEX_FLAT_TO_FLAT_MM
 
-    val BLEED_PX: Int = TokenShape.BLEED_PX
+    const val BLEED_PX: Int = TokenShape.BLEED_PX
 
     val HEX_BLEED_WIDTH_MM: Double =
         HEX_TIGHT_WIDTH_MM * UnitTokenShape.bleedShape().bounds.width.toDouble() / UnitTokenShape.boundingW

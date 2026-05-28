@@ -5,17 +5,6 @@ import net.rafkos.neuroshima.editor.model.LayerProperties
 enum class LayerProperty {
     OFFSET_X, OFFSET_Y, ROTATION, SCALE, OPACITY, HUE, SATURATION, BRIGHTNESS;
 
-    fun read(props: LayerProperties): Double = when (this) {
-        OFFSET_X -> props.offsetX.toDouble()
-        OFFSET_Y -> props.offsetY.toDouble()
-        ROTATION -> props.rotation.toDouble()
-        SCALE -> props.scale.toDouble()
-        OPACITY -> props.opacity.toDouble()
-        HUE -> props.hue.toDouble()
-        SATURATION -> props.saturation.toDouble()
-        BRIGHTNESS -> props.brightness.toDouble()
-    }
-
     fun apply(props: LayerProperties, value: Double): LayerProperties = when (this) {
         OFFSET_X -> props.copy(offsetX = value.toInt())
         OFFSET_Y -> props.copy(offsetY = value.toInt())

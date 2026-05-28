@@ -119,17 +119,16 @@ class LayerPropertiesPanel(private val ctx: AppContext) : JPanel() {
             val (min, max, step) = bounds(prop)
             val model = SpinnerNumberModel(value, min, max, step)
             val spinner = JSpinner(model)
-            val capturedProp = prop
             spinner.addChangeListener {
                 if (suppressChange) return@addChangeListener
                 val newValue = (spinner.value as Number).toDouble()
                 val currentLayer = ctx.bag.findToken(tokenId)?.findLayer(side, layer.id) ?: return@addChangeListener
-                val oldValue = propValue(currentLayer, capturedProp)
+                val oldValue = propValue(currentLayer, prop)
                 ctx.history.execute(ctx.bag, SetLayerPropertyCommand(
                     tokenId = tokenId,
                     side = side,
                     layerId = layer.id,
-                    property = capturedProp,
+                    property = prop,
                     oldValue = oldValue,
                     newValue = newValue,
                 ))

@@ -10,7 +10,6 @@ object AppDirs {
     val root: File = File(appDir ?: ".")
 
     val assetsRoot: File = installRoot?.resolve("assets") ?: root.resolve("assets")
-    val overlayRoot: File = installRoot?.resolve("overlay") ?: root.resolve("overlay")
 
     val userContentRoot: File = if (isWindows) {
         (installRoot ?: root).resolve("content")

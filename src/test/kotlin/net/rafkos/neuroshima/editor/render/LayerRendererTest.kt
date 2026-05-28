@@ -11,7 +11,7 @@ import java.awt.image.BufferedImage.TYPE_INT_ARGB
 class LayerRendererTest {
 
     private fun solid(color: Color, w: Int = 4, h: Int = 4): BufferedImage {
-        val img = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
+        val img = BufferedImage(w, h, TYPE_INT_ARGB)
         val g = img.createGraphics()
         g.color = color
         g.fillRect(0, 0, w, h)

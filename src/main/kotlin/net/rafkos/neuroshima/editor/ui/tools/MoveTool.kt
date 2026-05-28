@@ -2,7 +2,6 @@ package net.rafkos.neuroshima.editor.ui.tools
 
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.command.MoveLayerCommand
-import net.rafkos.neuroshima.editor.model.TokenSide
 import java.awt.Cursor
 import java.awt.event.MouseEvent
 import java.util.UUID

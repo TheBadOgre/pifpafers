@@ -1,9 +1,7 @@
 package net.rafkos.neuroshima.editor.render.color
 
 import kotlin.math.cbrt
-import kotlin.math.cos
 import kotlin.math.pow
-import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.atan2
 
@@ -39,31 +37,31 @@ object OkLab {
     data class LCh(val L: Float, val C: Float, val H: Float)
 
     fun linearRgbToOkLab(r: Float, g: Float, b: Float): Lab {
-        val l = 0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b
-        val m = 0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b
-        val s = 0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b
+        val l = 0.41222146f * r + 0.53633255f * g + 0.051445995f * b
+        val m = 0.2119035f * r + 0.6806995f * g + 0.10739696f * b
+        val s = 0.08830246f * r + 0.28171885f * g + 0.6299787f * b
         val l_ = cbrt(l.toDouble()).toFloat()
         val m_ = cbrt(m.toDouble()).toFloat()
         val s_ = cbrt(s.toDouble()).toFloat()
         return Lab(
-            L = 0.2104542553f * l_ + 0.7936177850f * m_ - 0.0040720468f * s_,
-            a = 1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_,
-            b = 0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_,
+            L = 0.21045426f * l_ + 0.7936178f * m_ - 0.004072047f * s_,
+            a = 1.9779985f * l_ - 2.4285922f * m_ + 0.4505937f * s_,
+            b = 0.025904037f * l_ + 0.78277177f * m_ - 0.80867577f * s_,
         )
     }
 
     /** Returns linear RGB triple as a FloatArray of size 3. */
     fun okLabToLinearRgb(L: Float, a: Float, b: Float): FloatArray {
-        val l_ = L + 0.3963377774f * a + 0.2158037573f * b
-        val m_ = L - 0.1055613458f * a - 0.0638541728f * b
-        val s_ = L - 0.0894841775f * a - 1.2914855480f * b
+        val l_ = L + 0.39633778f * a + 0.21580376f * b
+        val m_ = L - 0.105561346f * a - 0.06385417f * b
+        val s_ = L - 0.08948418f * a - 1.2914855f * b
         val l = l_ * l_ * l_
         val m = m_ * m_ * m_
         val s = s_ * s_ * s_
         return floatArrayOf(
-            4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s,
-            -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s,
-            -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s,
+            4.0767417f * l - 3.3077116f * m + 0.23096994f * s,
+            -1.268438f * l + 2.6097574f * m - 0.34131938f * s,
+            -0.0041960864f * l - 0.7034186f * m + 1.7076147f * s,
         )
     }
 
@@ -73,5 +71,4 @@ object OkLab {
         return LCh(L, C, H)
     }
 
-    fun lChToLab(L: Float, C: Float, H: Float): Lab = Lab(L, C * cos(H), C * sin(H))
 }

@@ -37,7 +37,7 @@ import javax.swing.filechooser.FileNameExtensionFilter
 class PublishingDialog(
     private val ctx: AppContext,
     owner: Frame,
-) : JDialog(owner, ctx.locale.t("dialog.publish.title"), Dialog.ModalityType.APPLICATION_MODAL) {
+) : JDialog(owner, ctx.locale.t("dialog.publish.title"), ModalityType.APPLICATION_MODAL) {
 
     private val preview = PagePreviewPanel()
     private var previewWorker: SwingWorker<*, *>? = null
@@ -61,8 +61,8 @@ class PublishingDialog(
     }
 
     private fun buildProgressDialog(message: String): JDialog {
-        val pd = JDialog(this, ctx.locale.t("dialog.progress.title"), Dialog.ModalityType.APPLICATION_MODAL)
-        pd.defaultCloseOperation = JDialog.DO_NOTHING_ON_CLOSE
+        val pd = JDialog(this, ctx.locale.t("dialog.progress.title"), ModalityType.APPLICATION_MODAL)
+        pd.defaultCloseOperation = DO_NOTHING_ON_CLOSE
         pd.isResizable = false
         val panel = JPanel(BorderLayout(0, 10))
         panel.border = BorderFactory.createEmptyBorder(20, 30, 20, 30)

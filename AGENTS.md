@@ -32,17 +32,17 @@ ui/ ──► persistence/, prefs/, i18n/
 
 `BASE = net.rafkos.neuroshima.editor`
 
-| Rule | Package | Forbidden imports | Allowed exception |
-|---|---|---|---|
-| R1 | `model` | `javax.swing`, `java.awt` | `java.awt.geom` |
-| R2 | `command` | `javax.swing`, `java.awt`, `ui` | — |
-| R3 | `persistence` | `javax.swing`, `java.awt`, `ui`, `command` | — |
-| R4 | `assets` | `javax.swing`, `ui`, `command` | `java.awt.image` |
-| R5 | `render` | `javax.swing`, `ui`, `command` | `java.awt` |
-| R6 | `i18n` | `javax.swing`, `java.awt`, `ui`, `model`, `command` | — |
-| R7 | `prefs` | `javax.swing`, `java.awt`, `ui`, `model` | — |
-| R8 | `ui.tools` | `persistence` | — |
-| R9 | `publish` | `javax.swing`, `ui`, `command` | — |
+| Rule | Package       | Forbidden imports                                   | Allowed exception |
+|------|---------------|-----------------------------------------------------|-------------------|
+| R1   | `model`       | `javax.swing`, `java.awt`                           | `java.awt.geom`   |
+| R2   | `command`     | `javax.swing`, `java.awt`, `ui`                     | —                 |
+| R3   | `persistence` | `javax.swing`, `java.awt`, `ui`, `command`          | —                 |
+| R4   | `assets`      | `javax.swing`, `ui`, `command`                      | `java.awt.image`  |
+| R5   | `render`      | `javax.swing`, `ui`, `command`                      | `java.awt`        |
+| R6   | `i18n`        | `javax.swing`, `java.awt`, `ui`, `model`, `command` | —                 |
+| R7   | `prefs`       | `javax.swing`, `java.awt`, `ui`, `model`            | —                 |
+| R8   | `ui.tools`    | `persistence`                                       | —                 |
+| R9   | `publish`     | `javax.swing`, `ui`, `command`                      | —                 |
 
 `util/`, `app/`, `render/overlay`, and `ui` subpackages other than `tools` are unconstrained. **Crossing boundaries → update both `PackageBoundaryTest` rules and this table.**
 

@@ -51,11 +51,11 @@ class OpacityDialog private constructor(
 
         contentPane = content
 
-        slider.addChangeListener(ChangeListener {
+        slider.addChangeListener {
             opacityValue = slider.value / 100f
             pctLabel.text = "${slider.value}%"
             onPreview(opacityValue)
-        })
+        }
 
         getRootPane().defaultButton = okBtn
         pack()

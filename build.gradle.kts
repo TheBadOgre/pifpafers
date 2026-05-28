@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "net.rafkos.neuroshima.editor"
-version = "0.2.0-SNAPSHOT"
+version = "1.0.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -95,7 +95,7 @@ fun jpackageCmd(type: String, destDir: File): List<String> {
         "--app-version", appVersion,
         "--type",        type,
         "--dest",        destDir.absolutePath,
-        "--java-options", "-Dapp.dir=\$APPDIR",
+        "--java-options", $$"-Dapp.dir=$APPDIR",
     )
     if (currentOs.contains("windows")) {
         val ico = jpackageContentDir.get().asFile.resolve("icon.ico")

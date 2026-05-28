@@ -49,7 +49,7 @@ class JsonBagStoreTest {
     }
 
     @Test
-    fun `load rejects unknown schema version (including legacy v1)`(@TempDir tmp: java.nio.file.Path) {
+    fun `load rejects unknown schema version (including legacy v1)`(@TempDir tmp: Path) {
         val file = tmp.resolve("legacy.box")
         java.nio.file.Files.writeString(
             file,
@@ -63,7 +63,7 @@ class JsonBagStoreTest {
     }
 
     @Test
-    fun `load reports every missing asset across both sides`(@TempDir tmp: java.nio.file.Path) {
+    fun `load reports every missing asset across both sides`(@TempDir tmp: Path) {
         val bag = TokenBag()
         val t = Token.createUnit()
         t.addLayer(TokenSide.FRONT, Layer.create(AssetPath.Bundled("missing/a.png")))
@@ -78,14 +78,14 @@ class JsonBagStoreTest {
         val ex = org.junit.jupiter.api.Assertions.assertThrows(
             MissingAssetsException::class.java
         ) { store.load(file) }
-        org.junit.jupiter.api.Assertions.assertEquals(
+        assertEquals(
             listOf("bundled://missing/a.png", "user://missing/b.png"),
             ex.missing.map { it.uri },
         )
     }
 
     @Test
-    fun `save writes via temp file then rename`(@TempDir tmp: java.nio.file.Path) {
+    fun `save writes via temp file then rename`(@TempDir tmp: Path) {
         val file = tmp.resolve("army.box")
         val store = JsonBagStore(assetResolver = { true })
         store.save(TokenBag().apply { name = "n" }, file)

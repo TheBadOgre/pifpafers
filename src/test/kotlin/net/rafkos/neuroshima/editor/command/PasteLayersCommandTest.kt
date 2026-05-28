@@ -88,7 +88,7 @@ class PasteLayersCommandTest {
     }
 
     @Test
-    fun `pasted layers are independent copies — mutating props does not affect snapshot`() {
+    fun `pasted layers are independent copies - mutating props does not affect snapshot`() {
         val (bag, token) = bagWithLayers()
         val props = LayerProperties(rotation = 30f)
         val snapshots = listOf(LayerSnapshot(AssetPath.Bundled("x.png"), props))

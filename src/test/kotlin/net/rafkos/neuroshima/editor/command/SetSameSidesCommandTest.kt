@@ -35,7 +35,7 @@ class SetSameSidesCommandTest {
 
     @Test
     fun `does not merge with another SetSameSidesCommand`() {
-        val (bag, id) = freshBagWithToken()
+        val (_, id) = freshBagWithToken()
         val a = SetSameSidesCommand(id, true)
         val b = SetSameSidesCommand(id, false)
         assertNull(a.mergeWith(b))

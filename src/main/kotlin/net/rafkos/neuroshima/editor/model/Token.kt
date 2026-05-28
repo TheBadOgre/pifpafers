@@ -48,7 +48,7 @@ class Token(
         sideList(side).firstOrNull { it.id == layerId }
 
     fun findLayerAnywhere(layerId: UUID): Pair<TokenSide, Layer>? {
-        for (side in TokenSide.values()) {
+        for (side in TokenSide.entries) {
             sideList(side).firstOrNull { it.id == layerId }?.let { return side to it }
         }
         return null

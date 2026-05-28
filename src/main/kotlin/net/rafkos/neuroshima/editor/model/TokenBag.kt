@@ -3,8 +3,6 @@ package net.rafkos.neuroshima.editor.model
 import java.util.UUID
 
 class TokenBag {
-    var schemaVersion: Int = 3
-        internal set
 
     var name: String = ""
         set(value) {

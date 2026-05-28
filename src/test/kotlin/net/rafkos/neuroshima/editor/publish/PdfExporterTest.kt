@@ -21,7 +21,6 @@ import java.util.UUID
 import kotlin.io.path.readBytes
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class PdfExporterTest {
 

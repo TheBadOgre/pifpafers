@@ -10,7 +10,7 @@ import java.nio.file.Path
 
 class BagOpener(
     private val library: AssetLibrary,
-    private val imageCache: ImageCache,
+    imageCache: ImageCache,
 ) {
     private val store = JsonBagStore(assetResolver = { library.assetExists(it) })
     private val preloader = ImagePreloader(library, imageCache)
@@ -18,7 +18,7 @@ class BagOpener(
     suspend fun open(file: Path): TokenBag {
         val bag = store.load(file)
         val referenced: List<AssetPath> = bag.tokens.flatMap { t ->
-            TokenSide.values().flatMap { side -> t.layers(side).map { it.assetPath } }
+            TokenSide.entries.flatMap { side -> t.layers(side).map { it.assetPath } }
         }.distinct()
         preloader.preload(referenced)
         return bag

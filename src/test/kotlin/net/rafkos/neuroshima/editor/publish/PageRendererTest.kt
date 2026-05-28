@@ -70,8 +70,8 @@ class PageRendererTest {
         t.addLayer(TokenSide.FRONT, Layer(UUID.randomUUID(), front, LayerProperties(0, 0, 0f, 1f, 1f, 0f, 1f, 1f, false)))
         t.addLayer(TokenSide.BACK,  Layer(UUID.randomUUID(), back,  LayerProperties(0, 0, 0f, 1f, 1f, 0f, 1f, 1f, false)))
         val renderer = PageRenderer(cache)
-        val a = renderer.renderTokenForPrint(t, TokenSide.FRONT, 128, true, false)
-        val b = renderer.renderTokenForPrint(t, TokenSide.BACK,  128, true, false)
+        val a = renderer.renderTokenForPrint(t, TokenSide.FRONT, 128, renderBleed = true, drawCutLine = false)
+        val b = renderer.renderTokenForPrint(t, TokenSide.BACK,  128, renderBleed = true, drawCutLine = false)
         assertEquals(a.getRGB(64, 64), b.getRGB(64, 64))
     }
 }
