@@ -2,6 +2,7 @@ package net.rafkos.neuroshima.editor.ui.tools
 
 import net.rafkos.neuroshima.editor.app.AppContext
 import net.rafkos.neuroshima.editor.render.AffineBuilder
+import net.rafkos.neuroshima.editor.render.TokenShape
 import net.rafkos.neuroshima.editor.ui.canvas.LOGICAL_CENTER_X
 import net.rafkos.neuroshima.editor.ui.canvas.LOGICAL_CENTER_Y
 import java.awt.event.MouseEvent
@@ -16,6 +17,12 @@ class SelectTool : Tool {
         val token = ctx.viewState.activeTokenId?.let { ctx.bag.findToken(it) } ?: return
         val side = ctx.viewState.activeSide
         val logical = mapper.screenToLogical(e.point)
+        val shape = TokenShape.forKind(token.kind)
+        val boundary = if (ctx.viewState.showOverlay) shape.bleedShape() else shape.clipShape()
+        if (!boundary.contains(logical)) {
+            ctx.viewState.clearSelection()
+            return
+        }
         val hitId = token.layers(side).asReversed().firstOrNull { layer ->
             val img = ctx.imageCache.get(layer.assetPath) ?: return@firstOrNull false
             val xform = AffineBuilder.build(layer.props, LOGICAL_CENTER_X, LOGICAL_CENTER_Y, img.width, img.height)
