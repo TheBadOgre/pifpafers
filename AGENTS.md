@@ -186,7 +186,7 @@ Two-sided notes:
 - `ThumbnailRenderer` has separate `TokenKey(tokenId, sizePx)` (→ dual composite) and `LayerKey(tokenId, side, layerId, sizePx)` cache entries (sealed `Key`); `layerThumbnail` builds a transient one-layer `Token` internally — its synthetic id is never used as a cache key. `invalidateToken` drops both.
 - `PreviewService` (singleton `ScheduledExecutorService`, 300 ms debounce, per-key `AtomicLong` version counter — stale results discarded) renders an HQ snapshot only for the **selected** token tile; `SwingUtilities.invokeLater` swaps the `ImageIcon` on EDT.
 - All image decoding off-EDT. `ImageCache` = `LinkedHashMap<AssetPath, SoftReference<BufferedImage>>`, LRU bound 256.
-- **Selection feedback**: blue-hue tint overlay (`tintBlue` → pure `0x0055ff`, alpha-preserving) composited at `AlphaComposite.SRC_OVER, 0.45f` over selected layers. Suppressed when `viewState.suppressSelectionTint == true` (e.g., while the colorize dialog is open so the live recolor preview is visible without the blue tint clobbering it). Not a dashed marker (legacy design — replaced).
+- **Selection feedback**: diagonal `//` stripe overlay (`selectionOverlayOf` — `TexturePaint` with 10×10 tile, 4px blue `0x0055ff` stripes, gaps transparent, alpha-preserving via `DstIn`) composited at `AlphaComposite.SRC_OVER, 0.7f` over selected layers. Gaps show original layer color through. Suppressed when `viewState.suppressSelectionTint == true` (e.g., while the colorize dialog is open). Not a dashed marker (legacy design — replaced).
 
 ## UI Layout
 

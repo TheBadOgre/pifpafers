@@ -18,9 +18,11 @@ import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.RenderingHints
+import java.awt.TexturePaint
 import java.awt.Transparency
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 import java.util.UUID
 import javax.swing.JPanel
@@ -52,7 +54,16 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
     private var selectionBuf: BufferedImage? = null
     private var selectionValid: Boolean = false
 
-    private val tintCache: MutableMap<AssetPath, BufferedImage> = HashMap()
+    private val overlayCache: MutableMap<AssetPath, BufferedImage> = HashMap()
+
+    private val stripeTile: BufferedImage by lazy {
+        val size = 40; val stripeW = 16
+        BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB).also { tile ->
+            val rgb = Color(0, 0x55, 0xff).rgb
+            for (y in 0 until size) for (x in 0 until size)
+                if ((x + y) % size < stripeW) tile.setRGB(x, y, rgb)
+        }
+    }
 
     private var lastActiveToken: UUID? = null
     private var lastActiveSide: TokenSide = TokenSide.FRONT
@@ -95,7 +106,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
                 compositeValid = false
                 selectionValid = false
                 compositeForTokenId = null
-                tintCache.clear()
+                overlayCache.clear()
                 lastActiveToken = newActive
                 lastActiveSide = newSide
             }
@@ -191,7 +202,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
             for (layer in token.layers(side)) {
                 if (layer.id !in selected) continue
                 val source = ctx.imageCache.get(layer.assetPath) ?: continue
-                val tinted = tintBlueOf(layer.assetPath, source)
+                val tinted = selectionOverlayOf(layer.assetPath, source)
                 val xform = AffineBuilder.build(
                     props = layer.props,
                     canvasCenterX = LOGICAL_CENTER_X,
@@ -208,20 +219,21 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         return buf
     }
 
-    private fun tintBlueOf(assetPath: AssetPath, src: BufferedImage): BufferedImage {
-        tintCache[assetPath]?.takeIf { it.width == src.width && it.height == src.height }?.let { return it }
+    private fun selectionOverlayOf(assetPath: AssetPath, src: BufferedImage): BufferedImage {
+        overlayCache[assetPath]?.takeIf { it.width == src.width && it.height == src.height }?.let { return it }
         val out = newManagedArgb(src.width, src.height)
         val g = out.createGraphics()
         try {
             g.composite = AlphaComposite.Src
-            g.color = Color(0, 0x55, 0xff)
+            val tile = stripeTile
+            g.paint = TexturePaint(tile, Rectangle2D.Float(0f, 0f, tile.width.toFloat(), tile.height.toFloat()))
             g.fillRect(0, 0, out.width, out.height)
             g.composite = AlphaComposite.DstIn
             g.drawImage(src, 0, 0, null)
         } finally {
             g.dispose()
         }
-        tintCache[assetPath] = out
+        overlayCache[assetPath] = out
         return out
     }
 
@@ -282,7 +294,7 @@ class TokenCanvasPanel(private val ctx: AppContext) : JPanel() {
         val sel = ensureSelection(tokenId)
         if (sel != null) {
             val saved = g2.composite
-            g2.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f)
+            g2.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f)
             blitLogical(g2, sel)
             g2.composite = saved
         }
