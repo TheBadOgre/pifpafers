@@ -18,5 +18,3 @@ A minimalistic army painter for [Neuroshima HEX](https://boardgamegeek.com/board
 - Unit + integration tests via `./gradlew test`.
 
 Use together with [Ojkiejpojki](https://github.com/TheBadOgre/ojkipojki) — a minimalistic tabletop simulator to test armies over the internet.
-
-See [AGENTS.md](AGENTS.md) for full architecture guide.
